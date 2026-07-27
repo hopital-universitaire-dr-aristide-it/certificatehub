@@ -1,0 +1,11 @@
+{
+    "name": "FormHub",
+    "alias": "formhub",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\FormHub\\Providers\\FormHubServiceProvider"
+    ],
+    "files": []
+}

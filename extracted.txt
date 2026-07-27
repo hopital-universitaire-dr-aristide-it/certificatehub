@@ -1,0 +1,37 @@
+==================== Certificat de santé 1.docx ====================
+[0] (Normal): Hôpital Universitaire Dr. Aristide
+[1] (Normal): Avenue Hôpital Dr. Aristide / Tabarre 48 
+[2] (Normal): Tabarre Haïti, w.i. 
+[3] (Normal): Tel+509 2817-3202/2949-3202
+[5] (Normal): Certificat de santé
+[6] (Normal): Tabarre, le ---------------------------
+[8] (Normal): Je, soussigné, Dr.  -----------------------------------------, Docteur en Médecine, affecté à l’Hôpital 
+[10] (Normal): Universitaire Dr. Aristide, certifie avoir examiné le--------------------------------
+[12] (Normal): Nom et prénom		: --------------------------------------------
+[14] (Normal): Date de naissance ou Age	: ---------------------						
+[16] (Normal): Résidence			: ---------------------------------------------
+[18] (Normal): ----------------------------------------------------------------- présente :
+[19] (List Paragraph): des signes évocateurs de maladies contagieuses ou transmissibles
+[20] (List Paragraph): des signes évocateurs de maladies chroniques
+[21] (List Paragraph): des signes évocateurs de maladies débilitantes 
+[22] (List Paragraph): des signes évocateurs de trouble mental
+[23] (Normal): Ce certificat lui est délivré pour servir á toutes fins utiles.
+[24] (Normal): Recommandations : Consulter un spécialiste
+[27] (Normal): ----------------------------------------------		App : 	Dr. Joseph Edmond Pierre
+[28] (Normal): Prestataire						Directeur Médical
+==================== Certificat de santé 2.docx ====================
+[0] (Normal): Hôpital Universitaire Dr. Aristide
+[1] (Normal): Avenue Hôpital Dr. Aristide / Tabarre 48 
+[2] (Normal): Tabarre Haïti, w.i. 
+[3] (Normal): Tel+509 2817-3202/2949-3202
+[5] (Normal): Certificat de santé
+[7] (Normal): Tabarre, le ---------------------------
+[9] (Normal): Je, soussigné, Dr.  -----------------------------------------, Docteur en Médecine, affecté à l’Hôpital 
+[11] (Normal): Universitaire Dr. Aristide, certifie avoir examiné le--------------------------------
+[13] (Normal): Nom et prénom		: --------------------------------------------
+[15] (Normal): Date de naissance ou Age	: ---------------------						
+[17] (Normal): Résidence			: ---------------------------------------------
+[19] (Normal): ---------------------------------------------- ne présente aucun signe de maladies contagieuses ou transmissibles, ni de signes de maladies débilitantes. Il / elle ne présente pas non plus de signes de trouble mental
+[20] (Normal): Ce certificat lui est délivré pour servir á toutes fins utiles.
+[24] (Normal): ----------------------------------------------		App : 	Dr. Joseph Edmond Pierre
+[25] (Normal): Prestataire						Directeur Médical

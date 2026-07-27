@@ -1,0 +1,58 @@
+services:
+  app:
+    volumes:
+      - app_storage:/var/www/html/storage
+    environment:
+      APP_DEBUG: "false"
+      APP_ENV:   production
+      LOG_LEVEL: warning
+
+  worker:
+    volumes:
+      - app_storage:/var/www/html/storage
+
+  scheduler:
+    volumes:
+      - app_storage:/var/www/html/storage
+
+  nginx:
+    volumes:
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+
+  # Sauvegarde automatique quotidienne vers Backblaze B2 (+ rotation locale)
+  backup:
+    image: alpine:3.19
+    container_name: certhub_backup
+    restart: unless-stopped
+    command: >
+      sh -c "
+        apk add --no-cache postgresql-client curl &&
+        mkdir -p /backups/local &&
+        while true; do
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S) &&
+          FILE=/backups/local/backup_$${TIMESTAMP}.dump &&
+          pg_dump -h postgres -U $${DB_USERNAME} $${DB_DATABASE} -F c -f $${FILE} &&
+          echo \"Backup local OK: $${FILE}\" &&
+          curl -s -u $${BACKBLAZE_KEY_ID}:$${BACKBLAZE_APP_KEY} \
+               -T $${FILE} \
+               https://s3.us-east-005.backblazeb2.com/$${BACKBLAZE_BUCKET}/backups/postgres/backup_$${TIMESTAMP}.dump \
+          && echo \"Backup B2 OK: backup_$${TIMESTAMP}.dump\" \
+          || echo \"ATTENTION: echec upload B2 (backup local conserve, sera retente au prochain cycle)\" ;
+          find /backups/local -name 'backup_*.dump' -mtime +14 -delete &&
+          sleep 86400;
+        done
+      "
+    environment:
+      DB_USERNAME:       ${DB_USERNAME}
+      DB_DATABASE:       ${DB_DATABASE}
+      PGPASSWORD:        ${DB_PASSWORD}
+      BACKBLAZE_KEY_ID:  ${BACKBLAZE_KEY_ID}
+      BACKBLAZE_APP_KEY: ${BACKBLAZE_APP_KEY}
+      BACKBLAZE_BUCKET:  ${BACKBLAZE_BUCKET}
+    volumes:
+      - ./backups:/backups/local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - certhub_net

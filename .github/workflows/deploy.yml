@@ -1,0 +1,60 @@
+name: Deploy
+
+# Ce workflow tourne sur un self-hosted runner installe sur le poste du
+# service informatique qui heberge CertificateHub (l'app n'est joignable
+# que sur le LAN de l'hopital, donc un runner GitHub-hosted classique ne
+# pourrait de toute facon pas atteindre docker compose sur cette machine).
+# Voir le README, section "CI/CD", pour la procedure d'installation du runner.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: certhub-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy sur le poste hopital
+    runs-on: [self-hosted, certhub]
+    environment: production
+
+    steps:
+      # clean:false — le .env de production et les certificats TLS auto-signes
+      # (docker/nginx/ssl/*.pem) vivent uniquement sur ce poste, hors du depot
+      # git (voir .gitignore). Un checkout "clean" les supprimerait.
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+
+      - name: Verifier la presence du .env de production
+        run: |
+          test -f .env || { echo "::error::.env absent — voir README section CI/CD (a creer une seule fois a la main sur ce poste)"; exit 1; }
+          test -f api/.env || { echo "::error::api/.env absent — voir README section CI/CD"; exit 1; }
+          test -f docker/nginx/ssl/fullchain.pem || { echo "::error::certificat TLS absent — voir README"; exit 1; }
+
+      - name: Build des images
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml build
+
+      - name: Build des assets frontend
+        run: docker build --target export -o web/dist ./web
+
+      - name: Demarrer / mettre a jour la stack
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+      - name: Migrations
+        run: docker compose exec -T app php artisan migrate --force
+
+      - name: Rafraichir les caches Laravel
+        run: |
+          docker compose exec -T app php artisan config:cache
+          docker compose exec -T app php artisan route:cache
+          docker compose exec -T app php artisan event:cache
+
+      - name: Verifier l'etat des services
+        run: docker compose ps
+
+      - name: Health check
+        run: curl -kfsS https://localhost/up

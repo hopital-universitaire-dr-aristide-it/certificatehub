@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/formhub",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\FormHub\\": "app/",
+            "Modules\\FormHub\\Database\\Factories\\": "database/factories/",
+            "Modules\\FormHub\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\FormHub\\Tests\\": "tests/"
+        }
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "Auth": true,
+    "Patient": true,
+    "Reception": true,
+    "FormHub": true,
+    "Certificate": true,
+    "SystemAdmin": true,
+    "Reports": true
+}

@@ -1,0 +1,69 @@
+services:
+  # NOTE: pas de volume anonyme sur /var/www/html/vendor, ni de volume nomme
+  # app_storage sur /var/www/html/storage ici — contrairement au pattern HMS
+  # (vendor installe DANS le conteneur, storage isole du code), en dev tout
+  # ./api est deja bind-mounte tel quel (vendor/ installe sur l'hote via des
+  # conteneurs composer jetables, storage/ deja peuple par le scaffold Laravel).
+  # Superposer app_storage par-dessus masquerait storage/framework et
+  # storage/logs avec un volume vide, puisque le stage "development" du
+  # Dockerfile ne COPY jamais api/ dans l'image (le code vient uniquement du
+  # bind mount).
+  app:
+    # -R : autorise le pool php-fpm a tourner en user=root (www.dev.conf) —
+    # necessaire car les fichiers bind-montes depuis Windows appartiennent a
+    # root sans droit d'ecriture pour www-data. Sans impact prod (stage/pool
+    # separes).
+    command: ["php-fpm", "-R"]
+    volumes:
+      - ./api:/var/www/html:cached
+    environment:
+      APP_DEBUG: "true"
+      APP_ENV:   local
+      LOG_LEVEL: debug
+
+  worker:
+    volumes:
+      - ./api:/var/www/html:cached
+
+  scheduler:
+    volumes:
+      - ./api:/var/www/html:cached
+
+  # Vite dev server — hot reload React
+  web:
+    image: node:20-alpine
+    container_name: certhub_web_dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    volumes:
+      - ./web:/app:cached
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    networks:
+      - certhub_net
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: certhub_mailpit
+    restart: unless-stopped
+    ports:
+      # Ports décalés : 1025/8025 déjà pris par un autre projet Docker sur ce poste
+      - "1026:1025"
+      - "8026:8025"
+    networks:
+      - certhub_net
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: certhub_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@certhub.local
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    networks:
+      - certhub_net
+    profiles:
+      - tools

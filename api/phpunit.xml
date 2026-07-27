@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+            <directory>Modules/*/tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+            <directory>Modules/*/tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <!--
+        Le perimetre ci-dessous ne liste QUE les modules ayant une implementation
+        reelle (par opposition aux stubs generes par `module:make`, non testes
+        par nature puisqu'ils n'existent pas encore fonctionnellement). Ajouter
+        chaque module ici des que sa tache d'implementation est terminee
+        (voir le plan warm-wandering-popcorn.md) — Reports reste hors
+        perimetre pour l'instant. Certificate n'a que sa partie
+        CertificateType a ce stade (tache Reception) ; le reste
+        (file d'attente medecin, remplissage, finalisation, impression)
+        arrive avec la tache Certificate.
+    -->
+    <source>
+        <include>
+            <directory>app</directory>
+            <directory>Modules/Auth/app</directory>
+            <directory>Modules/SystemAdmin/app</directory>
+            <directory>Modules/Patient/app</directory>
+            <directory>Modules/FormHub/app</directory>
+            <directory>Modules/Reception/app</directory>
+            <directory>Modules/Certificate/app</directory>
+        </include>
+    </source>
+    <!--
+        force="true" ci-dessous ne suffit PAS a garantir DB_DATABASE en local :
+        le service "app" de docker-compose exporte deja DB_DATABASE comme
+        vraie variable d'environnement du conteneur, or Laravel's env() lit
+        $_SERVER/$_ENV en priorite (peuples au demarrage du process depuis
+        l'environnement du conteneur) AVANT le putenv()/getenv() que force="true"
+        modifie — donc env('DB_DATABASE') reste 'certhub_db' meme force. Le
+        vrai garde-fou est dans tests/TestCase.php (force la connexion pgsql
+        vers certhub_test + verifie avant chaque test). Cette section reste
+        surtout utile pour CI, ou aucune variable d'environnement conflictuelle
+        n'est deja definie au niveau conteneur.
+    -->
+    <php>
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <env name="BCRYPT_ROUNDS" value="4" force="true"/>
+        <env name="CACHE_STORE" value="array" force="true"/>
+        <env name="DB_DATABASE" value="certhub_test" force="true"/>
+        <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="PULSE_ENABLED" value="false" force="true"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <env name="SCOUT_DRIVER" value="null" force="true"/>
+        <env name="SESSION_DRIVER" value="array" force="true"/>
+        <env name="TELESCOPE_ENABLED" value="false" force="true"/>
+    </php>
+</phpunit>

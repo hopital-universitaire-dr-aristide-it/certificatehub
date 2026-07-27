@@ -1,0 +1,50 @@
+<?php
+
+namespace Modules\SystemAdmin\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Modules\SystemAdmin\Http\Requests\AssignRoleRequest;
+use Modules\SystemAdmin\Http\Requests\StoreUserRequest;
+use Modules\SystemAdmin\Http\Requests\UpdateUserRequest;
+use Modules\SystemAdmin\Http\Resources\UserResource;
+use Modules\SystemAdmin\Services\UserService;
+
+class UserController extends Controller
+{
+    public function __construct(private readonly UserService $userService) {}
+
+    public function index()
+    {
+        return UserResource::collection($this->userService->list());
+    }
+
+    public function store(StoreUserRequest $request)
+    {
+        $user = $this->userService->create($request->validated());
+
+        return new UserResource($user);
+    }
+
+    public function update(UpdateUserRequest $request, User $user)
+    {
+        $user = $this->userService->update($user, $request->validated());
+
+        return new UserResource($user);
+    }
+
+    public function deactivate(User $user)
+    {
+        return new UserResource($this->userService->deactivate($user));
+    }
+
+    public function reactivate(User $user)
+    {
+        return new UserResource($this->userService->reactivate($user));
+    }
+
+    public function assignRole(AssignRoleRequest $request, User $user)
+    {
+        return new UserResource($this->userService->assignRole($user, $request->string('role')->toString()));
+    }
+}

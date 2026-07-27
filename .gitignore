@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+backups/
+docker/nginx/ssl/*.pem
+web/dist/
+web/node_modules/
+api/vendor/
+api/node_modules/
+api/storage/*.key
