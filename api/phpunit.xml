@@ -19,11 +19,9 @@
         reelle (par opposition aux stubs generes par `module:make`, non testes
         par nature puisqu'ils n'existent pas encore fonctionnellement). Ajouter
         chaque module ici des que sa tache d'implementation est terminee
-        (voir le plan warm-wandering-popcorn.md) — Reports reste hors
-        perimetre pour l'instant. Certificate n'a que sa partie
-        CertificateType a ce stade (tache Reception) ; le reste
-        (file d'attente medecin, remplissage, finalisation, impression)
-        arrive avec la tache Certificate.
+        (voir le plan warm-wandering-popcorn.md). Tous les modules backend
+        sont maintenant dans le perimetre — seule la tache #8 (frontend React)
+        n'a pas d'equivalent PHPUnit (voir web/ pour ses propres tests Vitest).
     -->
     <source>
         <include>
@@ -34,6 +32,7 @@
             <directory>Modules/FormHub/app</directory>
             <directory>Modules/Reception/app</directory>
             <directory>Modules/Certificate/app</directory>
+            <directory>Modules/Reports/app</directory>
         </include>
     </source>
     <!--

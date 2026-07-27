@@ -3,6 +3,7 @@
 namespace Modules\Reports\Providers;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Reports\Console\RefreshReportsCommand;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class ReportsServiceProvider extends ModuleServiceProvider
@@ -22,7 +23,9 @@ class ReportsServiceProvider extends ModuleServiceProvider
      *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        RefreshReportsCommand::class,
+    ];
 
     /**
      * Provider classes to register.
@@ -36,11 +39,9 @@ class ReportsServiceProvider extends ModuleServiceProvider
 
     /**
      * Define module schedules.
-     *
-     * @param  $schedule
      */
-    // protected function configureSchedules(Schedule $schedule): void
-    // {
-    //     $schedule->command('inspire')->hourly();
-    // }
+    protected function configureSchedules(Schedule $schedule): void
+    {
+        $schedule->command('reports:refresh')->dailyAt('02:00')->onOneServer();
+    }
 }
