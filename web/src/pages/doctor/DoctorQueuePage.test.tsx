@@ -38,11 +38,13 @@ function renderPage() {
 describe('DoctorQueuePage', () => {
   beforeEach(() => vi.mocked(api.get).mockReset())
 
-  it('lists paid certificates awaiting a doctor', async () => {
+  it('lists paid certificates awaiting a doctor without showing the fee amount', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [cert] } })
     renderPage()
     await waitFor(() => expect(screen.getByText('Marie Claire')).toBeInTheDocument())
     expect(screen.getByText('Prendre en charge')).toBeInTheDocument()
+    expect(screen.queryByText('Montant')).not.toBeInTheDocument()
+    expect(screen.queryByText(/500/)).not.toBeInTheDocument()
   })
 
   it('shows an empty state when the queue is empty', async () => {

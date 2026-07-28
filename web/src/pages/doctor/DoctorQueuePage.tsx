@@ -5,10 +5,6 @@ import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import type { Certificate, PaginatedResponse } from '../../types'
 
-function money(amount: number) {
-  return new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', maximumFractionDigits: 0 }).format(amount)
-}
-
 export function DoctorQueuePage() {
   const { data, isLoading } = useQuery({
     queryKey: ['certificates-queue'],
@@ -27,7 +23,6 @@ export function DoctorQueuePage() {
           <thead>
             <tr className="border-b border-neutral-200 text-neutral-500 dark:border-neutral-800">
               <th className="py-2 pr-4">Patient</th>
-              <th className="py-2 pr-4">Montant</th>
               <th className="py-2 pr-4">Enregistré le</th>
               <th className="py-2 pr-4"></th>
             </tr>
@@ -36,7 +31,6 @@ export function DoctorQueuePage() {
             {data?.map((cert) => (
               <tr key={cert.id} className="border-b border-neutral-100 dark:border-neutral-900">
                 <td className="py-2 pr-4">{cert.patient_name}</td>
-                <td className="py-2 pr-4">{money(cert.fee_amount)}</td>
                 <td className="py-2 pr-4">{new Date(cert.created_at).toLocaleString('fr-FR')}</td>
                 <td className="py-2 pr-4 text-right">
                   <Link to={`/doctor/certificates/${cert.id}`}>
@@ -47,7 +41,7 @@ export function DoctorQueuePage() {
             ))}
             {!isLoading && data?.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-4 text-center text-neutral-500">
+                <td colSpan={3} className="py-4 text-center text-neutral-500">
                   Aucun certificat en attente.
                 </td>
               </tr>
