@@ -6,12 +6,15 @@ use Modules\SystemAdmin\Http\Controllers\SystemController;
 use Modules\SystemAdmin\Http\Controllers\UserController;
 
 Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
+    Route::get('users/trashed', [UserController::class, 'trashed'])->middleware('can:user.restore');
     Route::get('users', [UserController::class, 'index'])->middleware('can:user.view');
     Route::post('users', [UserController::class, 'store'])->middleware('can:user.create');
     Route::put('users/{user}', [UserController::class, 'update'])->middleware('can:user.update');
     Route::post('users/{user}/deactivate', [UserController::class, 'deactivate'])->middleware('can:user.deactivate');
     Route::post('users/{user}/reactivate', [UserController::class, 'reactivate'])->middleware('can:user.deactivate');
     Route::post('users/{user}/role', [UserController::class, 'assignRole'])->middleware('can:role.assign');
+    Route::delete('users/{user}', [UserController::class, 'destroy'])->middleware('can:user.delete');
+    Route::post('users/{user}/restore', [UserController::class, 'restore'])->middleware('can:user.restore')->withTrashed();
 
     Route::get('system/health', [SystemController::class, 'health'])->middleware('can:system.health.view');
     Route::get('system/logs', [SystemController::class, 'logs'])->middleware('can:system.logs.view');

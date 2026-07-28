@@ -18,6 +18,7 @@ export function AppLayout() {
     { to: '/admin/form-hub', label: 'Formulaires', show: hasPermission('form_field.manage') },
     { to: '/admin/certificate-types', label: 'Types de certificats', show: hasPermission('certificate_type.manage') },
     { to: '/admin/users', label: 'Utilisateurs', show: hasPermission('user.view') },
+    { to: '/admin/patients', label: 'Patients', show: hasPermission('patient.delete') },
     { to: '/admin/settings', label: 'Paramètres', show: hasPermission('settings.manage') },
     { to: '/it/system', label: 'Système', show: hasRole('it') },
   ]

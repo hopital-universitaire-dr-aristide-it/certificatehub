@@ -53,6 +53,19 @@ class UserService
         return $user->fresh('roles');
     }
 
+    public function delete(User $user): void
+    {
+        $user->tokens()->delete();
+        $user->delete();
+    }
+
+    public function restore(User $user): User
+    {
+        $user->restore();
+
+        return $user->fresh('roles');
+    }
+
     public function assignRole(User $user, string $role): User
     {
         $user->syncRoles([$role]);

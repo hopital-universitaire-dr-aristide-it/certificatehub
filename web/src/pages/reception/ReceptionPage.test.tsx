@@ -28,8 +28,10 @@ const visit: Certificate = {
   certificate_number: null,
   status: 'draft',
   payment_status: 'unpaid',
+  paid_at: null,
   finalized_at: null,
   created_at: new Date().toISOString(),
+  deleted_at: null,
 }
 
 function renderPage(permissions: string[] = ['certificate.create', 'certificate.mark_paid']) {

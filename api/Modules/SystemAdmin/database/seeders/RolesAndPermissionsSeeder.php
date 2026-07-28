@@ -40,11 +40,24 @@ class RolesAndPermissionsSeeder extends Seeder
         'superadmin' => [],
     ];
 
+    /**
+     * Permissions exclusives au superadmin (suppression douce / retablissement) —
+     * n'apparaissent dans aucune liste de $rolePermissions ci-dessus, donc
+     * jamais accordees a reception/doctor/admin/it.
+     */
+    private array $superadminOnlyPermissions = [
+        'patient.delete', 'patient.restore',
+        'user.delete', 'user.restore',
+        'certificate.delete', 'certificate.restore',
+    ];
+
     public function run(): void
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $allPermissions = collect($this->rolePermissions)->flatten()->unique()->values();
+        $allPermissions = collect($this->rolePermissions)->flatten()
+            ->merge($this->superadminOnlyPermissions)
+            ->unique()->values();
 
         foreach ($allPermissions as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => self::GUARD]);

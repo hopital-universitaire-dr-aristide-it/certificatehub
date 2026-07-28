@@ -34,6 +34,18 @@ class PatientService
         return $patient->fresh();
     }
 
+    public function delete(Patient $patient): void
+    {
+        $patient->delete();
+    }
+
+    public function restore(Patient $patient): Patient
+    {
+        $patient->restore();
+
+        return $patient->fresh();
+    }
+
     public function checkDuplicates(string $firstName, string $lastName, ?string $dateOfBirth): Collection
     {
         return $this->deduplicationService->findPotentialDuplicates($firstName, $lastName, $dateOfBirth);

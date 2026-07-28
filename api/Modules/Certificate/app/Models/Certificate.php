@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Certificate\Database\Factories\CertificateFactory;
 use Modules\Certificate\Enums\CertificateStatus;
 use Modules\Certificate\Enums\PaymentStatus;
@@ -13,7 +14,7 @@ use Modules\Patient\Models\Patient;
 
 class Certificate extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'patient_id',
@@ -25,6 +26,7 @@ class Certificate extends Model
         'data',
         'status',
         'payment_status',
+        'paid_at',
         'finalized_at',
     ];
 
@@ -35,6 +37,7 @@ class Certificate extends Model
             'data' => 'array',
             'status' => CertificateStatus::class,
             'payment_status' => PaymentStatus::class,
+            'paid_at' => 'datetime',
             'finalized_at' => 'datetime',
         ];
     }

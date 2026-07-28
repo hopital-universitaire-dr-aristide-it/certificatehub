@@ -14,6 +14,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         Route::put('certificate-types/{certificateType}', [CertificateTypeController::class, 'update']);
     });
 
+    // Doit etre declaree avant certificates/{certificate} sinon "trashed" est
+    // interprete comme un {certificate} et le binding de route echoue.
+    Route::get('certificates/trashed', [CertificateController::class, 'trashed'])
+        ->middleware('can:certificate.restore');
+
     // Cote medecin : prise en charge, remplissage et finalisation.
     Route::middleware('can:certificate.finalize')->group(function () {
         Route::get('certificates/queue', [CertificateController::class, 'queue']);
@@ -25,4 +30,12 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
 
     Route::get('certificates/{certificate}/print', [CertificateController::class, 'print'])
         ->middleware('can:certificate.print');
+
+    Route::get('certificates/{certificate}/invoice', [CertificateController::class, 'invoice'])
+        ->middleware('can:certificate.print');
+
+    Route::delete('certificates/{certificate}', [CertificateController::class, 'destroy'])
+        ->middleware('can:certificate.delete');
+    Route::post('certificates/{certificate}/restore', [CertificateController::class, 'restore'])
+        ->middleware('can:certificate.restore')->withTrashed();
 });

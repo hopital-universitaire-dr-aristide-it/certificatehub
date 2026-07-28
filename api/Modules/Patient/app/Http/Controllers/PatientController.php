@@ -40,6 +40,28 @@ class PatientController extends Controller
         return new PatientResource($this->patientService->update($patient, $request->validated()));
     }
 
+    public function destroy(Patient $patient)
+    {
+        $this->patientService->delete($patient);
+
+        return response()->noContent();
+    }
+
+    public function restore(Patient $patient)
+    {
+        return new PatientResource($this->patientService->restore($patient));
+    }
+
+    /**
+     * Patients supprimes (corbeille) — reserve au superadmin, pour retablissement.
+     */
+    public function trashed()
+    {
+        return PatientResource::collection(
+            Patient::onlyTrashed()->orderByDesc('deleted_at')->paginate(20)
+        );
+    }
+
     /**
      * Autocomplete temps reel (Typesense) — utilise par l'accueil et le medecin.
      */

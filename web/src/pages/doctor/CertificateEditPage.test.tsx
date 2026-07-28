@@ -30,6 +30,7 @@ const patient: Patient = {
   residence: 'Port-au-Prince',
   created_by: 1,
   created_at: new Date().toISOString(),
+  deleted_at: null,
 }
 
 const fields: FormField[] = [
@@ -58,8 +59,10 @@ function draftCertificate(overrides: Partial<Certificate> = {}): Certificate {
     certificate_number: null,
     status: 'draft',
     payment_status: 'paid',
+    paid_at: new Date().toISOString(),
     finalized_at: null,
     created_at: new Date().toISOString(),
+    deleted_at: null,
     data: {},
     ...overrides,
   }

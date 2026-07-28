@@ -16,6 +16,7 @@ class UserResource extends JsonResource
             'is_active' => $this->is_active,
             'roles' => $this->whenLoaded('roles', fn () => $this->roles->pluck('name')),
             'created_at' => $this->created_at,
+            'deleted_at' => $this->deleted_at,
         ];
     }
 }

@@ -19,8 +19,10 @@ class CertificateResource extends JsonResource
             'certificate_number' => $this->certificate_number,
             'status' => $this->status->value,
             'payment_status' => $this->payment_status->value,
+            'paid_at' => $this->paid_at,
             'finalized_at' => $this->finalized_at,
             'created_at' => $this->created_at,
+            'deleted_at' => $this->deleted_at,
         ];
     }
 }

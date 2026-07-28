@@ -37,7 +37,7 @@ class ReceptionService
 
     public function markPaid(Certificate $certificate): Certificate
     {
-        $certificate->update(['payment_status' => PaymentStatus::Paid]);
+        $certificate->update(['payment_status' => PaymentStatus::Paid, 'paid_at' => now()]);
 
         return $certificate->fresh();
     }

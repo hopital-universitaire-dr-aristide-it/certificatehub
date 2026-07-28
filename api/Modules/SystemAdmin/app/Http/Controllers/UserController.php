@@ -4,6 +4,8 @@ namespace Modules\SystemAdmin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Modules\SystemAdmin\Http\Requests\AssignRoleRequest;
 use Modules\SystemAdmin\Http\Requests\StoreUserRequest;
 use Modules\SystemAdmin\Http\Requests\UpdateUserRequest;
@@ -46,5 +48,33 @@ class UserController extends Controller
     public function assignRole(AssignRoleRequest $request, User $user)
     {
         return new UserResource($this->userService->assignRole($user, $request->string('role')->toString()));
+    }
+
+    public function destroy(Request $request, User $user)
+    {
+        if ($user->id === $request->user()->id) {
+            throw ValidationException::withMessages([
+                'user' => 'Vous ne pouvez pas supprimer votre propre compte.',
+            ]);
+        }
+
+        $this->userService->delete($user);
+
+        return response()->noContent();
+    }
+
+    public function restore(User $user)
+    {
+        return new UserResource($this->userService->restore($user));
+    }
+
+    /**
+     * Utilisateurs supprimes (corbeille) — reserve au superadmin, pour retablissement.
+     */
+    public function trashed()
+    {
+        return UserResource::collection(
+            User::onlyTrashed()->with('roles')->orderByDesc('deleted_at')->get()
+        );
     }
 }

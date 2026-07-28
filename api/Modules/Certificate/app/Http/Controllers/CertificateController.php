@@ -13,12 +13,14 @@ use Modules\Certificate\Models\Certificate;
 use Modules\Certificate\Models\CertificatePrintLog;
 use Modules\Certificate\Services\CertificatePrintService;
 use Modules\Certificate\Services\CertificateService;
+use Modules\Certificate\Services\InvoiceService;
 
 class CertificateController extends Controller
 {
     public function __construct(
         private readonly CertificateService $certificateService,
         private readonly CertificatePrintService $printService,
+        private readonly InvoiceService $invoiceService,
     ) {}
 
     /**
@@ -88,5 +90,43 @@ class CertificateController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => "inline; filename=\"{$filename}\"",
         ]);
+    }
+
+    /**
+     * Facture/recu imprimable — disponible des que le paiement est enregistre
+     * a l'accueil, pas besoin d'attendre la finalisation du certificat.
+     */
+    public function invoice(Certificate $certificate): Response
+    {
+        $pdf = $this->invoiceService->generate($certificate);
+
+        $filename = 'facture-'.$certificate->id.'.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "inline; filename=\"{$filename}\"",
+        ]);
+    }
+
+    public function destroy(Certificate $certificate)
+    {
+        $this->certificateService->delete($certificate);
+
+        return response()->noContent();
+    }
+
+    public function restore(Certificate $certificate)
+    {
+        return new CertificateResource($this->certificateService->restore($certificate));
+    }
+
+    /**
+     * Certificats supprimes (corbeille) — reserve au superadmin, pour retablissement.
+     */
+    public function trashed()
+    {
+        return CertificateResource::collection(
+            Certificate::onlyTrashed()->with('patient')->orderByDesc('deleted_at')->paginate(20)
+        );
     }
 }

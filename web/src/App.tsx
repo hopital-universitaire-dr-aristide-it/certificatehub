@@ -9,6 +9,7 @@ import { CertificateEditPage } from './pages/doctor/CertificateEditPage'
 import { FormHubPage } from './pages/admin/FormHubPage'
 import { CertificateTypesPage } from './pages/admin/CertificateTypesPage'
 import { UsersPage } from './pages/admin/UsersPage'
+import { PatientsPage } from './pages/admin/PatientsPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
 import { SystemHealthPage } from './pages/it/SystemHealthPage'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
@@ -46,6 +47,10 @@ function App() {
 
             <Route element={<ProtectedRoute permission="user.view" />}>
               <Route path="admin/users" element={<UsersPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute permission="patient.delete" />}>
+              <Route path="admin/patients" element={<PatientsPage />} />
             </Route>
 
             <Route element={<ProtectedRoute permission="settings.manage" />}>

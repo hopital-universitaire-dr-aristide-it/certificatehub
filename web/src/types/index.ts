@@ -15,6 +15,7 @@ export interface User {
   is_active: boolean
   roles: Role[]
   created_at: string
+  deleted_at: string | null
 }
 
 export interface Patient {
@@ -28,6 +29,7 @@ export interface Patient {
   residence: string | null
   created_by: number
   created_at: string
+  deleted_at: string | null
 }
 
 export interface PatientSummary {
@@ -50,8 +52,10 @@ export interface Certificate {
   certificate_number: string | null
   status: CertificateStatus
   payment_status: PaymentStatus
+  paid_at: string | null
   finalized_at: string | null
   created_at: string
+  deleted_at: string | null
   data?: Record<string, unknown>
 }
 

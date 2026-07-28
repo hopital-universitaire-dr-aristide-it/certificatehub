@@ -88,4 +88,16 @@ class CertificateService
             return $certificate->fresh();
         });
     }
+
+    public function delete(Certificate $certificate): void
+    {
+        $certificate->delete();
+    }
+
+    public function restore(Certificate $certificate): Certificate
+    {
+        $certificate->restore();
+
+        return $certificate->fresh();
+    }
 }

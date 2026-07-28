@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Banknote, Printer } from 'lucide-react'
+import { Banknote, Printer, Receipt, Trash2 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { openPdfInNewTab } from '../../lib/pdf'
@@ -19,13 +19,14 @@ function money(amount: number) {
 
 export function ReceptionPage() {
   const queryClient = useQueryClient()
-  const { hasPermission } = useAuth()
+  const { hasPermission, hasRole } = useAuth()
   const [mode, setMode] = useState<'search' | 'create'>('search')
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | Patient | null>(null)
   const [certificateTypeId, setCertificateTypeId] = useState<string>('')
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
   const canPrint = hasPermission('certificate.print')
+  const isSuperadmin = hasRole('superadmin')
 
   const { data: certificateTypes } = useQuery({
     queryKey: ['certificate-types'],
@@ -68,6 +69,14 @@ export function ReceptionPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['visits'] }),
   })
 
+  const deleteVisit = useMutation({
+    mutationFn: async (certificateId: number) => {
+      await api.delete(`/certificates/${certificateId}`)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['visits'] }),
+    onError: (err) => setPrintError(apiErrorMessage(err)),
+  })
+
   function handleRegister() {
     setRegisterError(null)
     if (!selectedPatient || !certificateTypeId) {
@@ -81,6 +90,15 @@ export function ReceptionPage() {
     setPrintError(null)
     try {
       await openPdfInNewTab(`/certificates/${certificateId}/print`)
+    } catch (err) {
+      setPrintError(apiErrorMessage(err))
+    }
+  }
+
+  async function handleInvoice(certificateId: number) {
+    setPrintError(null)
+    try {
+      await openPdfInNewTab(`/certificates/${certificateId}/invoice`)
     } catch (err) {
       setPrintError(apiErrorMessage(err))
     }
@@ -170,8 +188,23 @@ export function ReceptionPage() {
                           disabled={markPaid.isPending}
                         />
                       )}
+                      {visit.payment_status === 'paid' && canPrint && (
+                        <IconButton icon={Receipt} label="Imprimer la facture" onClick={() => handleInvoice(visit.id)} />
+                      )}
                       {visit.status === 'finalized' && canPrint && (
                         <IconButton icon={Printer} label="Imprimer" onClick={() => handlePrint(visit.id)} />
+                      )}
+                      {isSuperadmin && (
+                        <IconButton
+                          icon={Trash2}
+                          label="Supprimer"
+                          tone="danger"
+                          onClick={() => {
+                            if (window.confirm('Supprimer cette visite/ce certificat ? Il pourra être rétabli depuis la corbeille.')) {
+                              deleteVisit.mutate(visit.id)
+                            }
+                          }}
+                        />
                       )}
                     </div>
                   </td>

@@ -20,6 +20,7 @@ class PatientResource extends JsonResource
             'residence' => $this->residence,
             'created_by' => $this->created_by,
             'created_at' => $this->created_at,
+            'deleted_at' => $this->deleted_at,
         ];
     }
 }

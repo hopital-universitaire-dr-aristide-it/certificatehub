@@ -18,8 +18,10 @@ const cert: Certificate = {
   certificate_number: null,
   status: 'draft',
   payment_status: 'paid',
+  paid_at: new Date().toISOString(),
   finalized_at: null,
   created_at: new Date().toISOString(),
+  deleted_at: null,
 }
 
 function renderPage() {
