@@ -32,18 +32,24 @@ docker compose exec app php artisan scout:import "Modules\Patient\Models\Patient
 
 ## Démarrage (production — poste du service informatique)
 
+**Voir `DEPLOYMENT.md`** pour la procédure complète et détaillée (checklist,
+valeurs à demander à l'opérateur, tests de bout en bout, dépannage).
+Résumé :
+
 ```bash
 cp .env.example .env
 # éditer avec les vraies valeurs de production (mots de passe forts, APP_URL=https://<ip-du-poste>)
 
 cp .env api/.env
 
-# Générer un certificat auto-signé si aucun n'existe encore :
+# Générer un certificat auto-signé si aucun n'existe encore — le SAN est
+# obligatoire, les navigateurs récents ignorent le CN seul :
 mkdir -p docker/nginx/ssl
 openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
   -keyout docker/nginx/ssl/privkey.pem \
   -out docker/nginx/ssl/fullchain.pem \
-  -subj "/CN=certificatehub.local"
+  -subj "/CN=<ip-du-poste>" \
+  -addext "subjectAltName=IP:<ip-du-poste>"
 
 # Build du frontend (assets statiques servis par nginx)
 docker build --target export -o web/dist ./web
