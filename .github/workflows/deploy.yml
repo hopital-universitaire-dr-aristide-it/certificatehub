@@ -43,10 +43,13 @@ jobs:
           clean: false
 
       - name: Verifier la presence du .env de production
+        # Tirets ASCII simples uniquement dans ce script : Windows PowerShell 5.1
+        # relit mal l'UTF-8 du fichier .ps1 genere par le runner, et un tiret
+        # cadratin (em dash) suffit a casser le parsing des chaines de caracteres.
         run: |
-          if (-not (Test-Path .env)) { Write-Error ".env absent — voir README section CI/CD (a creer une seule fois a la main sur ce poste)"; exit 1 }
-          if (-not (Test-Path api/.env)) { Write-Error "api/.env absent — voir README section CI/CD"; exit 1 }
-          if (-not (Test-Path docker/nginx/ssl/fullchain.pem)) { Write-Error "certificat TLS absent — voir README"; exit 1 }
+          if (-not (Test-Path .env)) { Write-Error ".env absent - voir README section CI/CD (a creer une seule fois a la main sur ce poste)"; exit 1 }
+          if (-not (Test-Path api/.env)) { Write-Error "api/.env absent - voir README section CI/CD"; exit 1 }
+          if (-not (Test-Path docker/nginx/ssl/fullchain.pem)) { Write-Error "certificat TLS absent - voir README"; exit 1 }
 
       - name: Build des images
         run: docker compose -f docker-compose.yml -f docker-compose.prod.yml build
