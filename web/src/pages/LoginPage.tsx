@@ -5,7 +5,6 @@ import { apiErrorMessage } from '../lib/api'
 import { Button } from '../components/ui/Button'
 import { Input, Label, FieldError } from '../components/ui/Field'
 import { Card } from '../components/ui/Card'
-import { Logo } from '../components/ui/Logo'
 
 export function LoginPage() {
   const { user, login } = useAuth()
@@ -35,7 +34,6 @@ export function LoginPage() {
     <div className="flex min-h-svh items-center justify-center bg-neutral-50 px-4 dark:bg-neutral-950">
       <Card className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <Logo className="mb-3 h-14 w-14" />
           <h1 className="text-xl font-semibold tracking-tight">CertificateHub</h1>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
             Hopital Universitaire Dr. Aristide

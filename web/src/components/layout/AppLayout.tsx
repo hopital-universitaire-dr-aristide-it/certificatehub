@@ -1,7 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
 import { Button } from '../ui/Button'
-import { Logo } from '../ui/Logo'
 
 interface NavItem {
   to: string
@@ -26,12 +25,9 @@ export function AppLayout() {
   return (
     <div className="flex min-h-svh">
       <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white/60 px-4 py-6 dark:border-neutral-800 dark:bg-neutral-900/40">
-        <div className="mb-8 flex items-center gap-2 px-2">
-          <Logo className="h-8 w-8 shrink-0" />
-          <div>
-            <p className="text-lg font-semibold tracking-tight">CertificateHub</p>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">HUDA</p>
-          </div>
+        <div className="mb-8 px-2">
+          <p className="text-lg font-semibold tracking-tight">CertificateHub</p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">HUDA</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
           {navItems
