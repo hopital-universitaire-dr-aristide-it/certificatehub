@@ -20,6 +20,11 @@ jobs:
     name: Deploy sur le poste hopital
     runs-on: [self-hosted, certhub]
     environment: production
+    # Runner Windows : sans ceci, les etapes `run:` s'executent en PowerShell
+    # (pas bash) et toute la syntaxe bash ci-dessous (test -f, ||, {…;}) echoue.
+    defaults:
+      run:
+        shell: bash
 
     steps:
       # clean:false — le .env de production et les certificats TLS auto-signes
