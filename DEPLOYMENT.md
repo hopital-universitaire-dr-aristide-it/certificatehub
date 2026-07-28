@@ -252,6 +252,37 @@ permet aux futures mises à jour du dépôt d'être déployées automatiquement
 sur cette même machine via GitHub Actions (`deploy.yml`), sans répéter les
 étapes 6-7 manuellement à chaque changement.
 
+## 12. Remplacer le logo par défaut
+
+Le code est déjà câblé pour afficher un logo (écran de connexion + barre
+latérale) : il cherche `/logo.png`, et s'efface silencieusement (pas
+d'icône d'image cassée) tant que ce fichier n'existe pas. Pour poser le
+vrai logo fourni par l'opérateur :
+
+```bash
+# Copier le fichier reçu (photo/logo de l'hôpital) exactement à cet endroit :
+cp <chemin-vers-le-fichier-recu> web/public/logo.png
+```
+
+Formats : PNG de préférence (transparence), carré (ex: 512×512) pour un bon
+rendu à la fois en petit (barre latérale, ~32px) et en plus grand (écran de
+connexion, ~56px) — pas besoin d'être exact, l'image est recadrée en
+`object-contain`. Si le fichier fourni est un `.jpg`/`.jpeg`, le convertir
+en `logo.png` (ou modifier les deux références `src="/logo.png"` dans
+`web/src/components/ui/Logo.tsx` si l'opérateur préfère garder un autre
+format).
+
+Une fois le fichier en place, reconstruire et republier les assets frontend
+(ceci suffit — aucun redémarrage des autres conteneurs n'est nécessaire) :
+
+```bash
+docker build --target export -o web/dist ./web
+```
+
+Vérifier depuis un navigateur (recharger la page, vider le cache si
+nécessaire) que le logo apparaît sur l'écran de connexion et dans la barre
+latérale après connexion.
+
 ## Dépannage — problèmes déjà rencontrés en développement
 
 - **Requêtes très lentes (10-20s)** : n'affecte que l'environnement de *dev*
