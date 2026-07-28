@@ -21,13 +21,18 @@ jobs:
     runs-on: [self-hosted, certhub]
     environment: production
     # Runner Windows : les etapes `run:` s'executent en PowerShell par defaut
-    # (pas bash) — pas de "shell:" personnalise ici. Une premiere tentative
-    # avec `shell: bash` resolvait vers C:\Windows\system32\bash.exe (le
-    # lanceur WSL, trouve avant Git Bash sur le PATH), qui echoue tout de
-    # suite car le service runner tourne sous NETWORK SERVICE sans
-    # distribution WSL. Un chemin Git Bash explicite (`C:\Program Files\...`)
-    # echoue aussi : ce runner ne gere pas l'espace dans "Program Files" dans
-    # la syntaxe `shell:`. D'ou des etapes ecrites en PowerShell ci-dessous.
+    # (pas bash), d'ou des etapes ecrites en PowerShell ci-dessous (tentatives
+    # avec `shell: bash` ou un chemin Git Bash explicite abandonnees : la
+    # premiere resout vers le lanceur WSL de C:\Windows\system32, sans
+    # distribution installee pour le compte NETWORK SERVICE ; la seconde se
+    # heurte a un bug de parsing du runner sur l'espace dans "Program Files").
+    # -ExecutionPolicy Bypass : le compte NETWORK SERVICE a une strategie
+    # d'execution par defaut qui bloque tout script .ps1 ("running scripts is
+    # disabled on this system") — ne change rien au niveau de la machine,
+    # s'applique seulement a l'appel de ce script genere par le runner.
+    defaults:
+      run:
+        shell: powershell -ExecutionPolicy Bypass -Command ". '{0}'"
 
     steps:
       # clean:false — le .env de production et les certificats TLS auto-signes
