@@ -22,9 +22,13 @@ jobs:
     environment: production
     # Runner Windows : sans ceci, les etapes `run:` s'executent en PowerShell
     # (pas bash) et toute la syntaxe bash ci-dessous (test -f, ||, {…;}) echoue.
+    # Chemin explicite obligatoire : `shell: bash` seul resout vers le bash.exe
+    # de WSL present dans C:\Windows\system32 (trouve avant Git Bash sur le
+    # PATH), qui echoue immediatement car le service tourne sous le compte
+    # systeme NETWORK SERVICE, sans distribution WSL installee.
     defaults:
       run:
-        shell: bash
+        shell: 'C:\Program Files\Git\bin\bash.exe -e {0}'
 
     steps:
       # clean:false — le .env de production et les certificats TLS auto-signes
