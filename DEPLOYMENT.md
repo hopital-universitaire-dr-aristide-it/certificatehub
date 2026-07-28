@@ -14,8 +14,38 @@ deviner ces valeurs.
 
 ## 0. Prérequis — à confirmer avant de commencer
 
-- [ ] Docker Engine + Docker Compose v2 installés sur la machine cible
-      (`docker --version` et `docker compose version`).
+Cette machine est neuve / à peine préparée : seuls VS Code, Docker (Desktop),
+Git Bash et Claude Desktop y ont été installés — **rien d'autre n'est
+supposé présent**. Ne pas supposer que PHP, Composer, Node ou npm sont
+disponibles sur l'hôte : tout tourne dans Docker, c'est voulu (voir
+`docker-compose.yml`).
+
+**Avant toute autre étape, vérifier chaque point ci-dessous dans Git Bash et
+corriger ce qui manque :**
+
+- [ ] **Docker Desktop est réellement démarré** (pas juste installé) —
+      ouvrir l'application Docker Desktop et attendre l'icône "running"
+      dans la barre système avant de continuer. Vérifier ensuite :
+      ```bash
+      docker --version
+      docker compose version
+      docker info        # doit répondre sans erreur — sinon Docker Desktop n'est pas démarré
+      ```
+      Si `docker info` échoue avec une erreur de pipe/socket, relancer
+      Docker Desktop et réessayer. Si Docker Desktop refuse de démarrer
+      (erreur WSL2), voir le dépannage en bas de fichier.
+- [ ] **Git fonctionne** : `git --version` (Git Bash l'inclut déjà).
+- [ ] **OpenSSL fonctionne** (nécessaire à l'étape 4, généré du certificat
+      TLS) : `openssl version` — Git Bash l'inclut déjà, aucune installation
+      séparée nécessaire.
+- [ ] **Accès réseau sortant vers GitHub et Docker Hub** — le premier
+      `docker compose up` télécharge plusieurs images (postgres, redis,
+      typesense, nginx, node) ; si le réseau de l'hôpital bloque des
+      domaines externes, demander à l'IT d'autoriser `github.com`,
+      `*.docker.io`, `*.docker.com` en sortant.
+- [ ] Rien d'autre à installer manuellement : pas besoin de PHP, Composer,
+      Node.js ni npm sur l'hôte — tout s'exécute à l'intérieur des
+      conteneurs Docker.
 - [ ] Accès réseau sortant vers GitHub (pour cloner le dépôt privé
       `hopital-universitaire-dr-aristide-it/certificatehub`).
 - [ ] ⛔ **DEMANDER A L'OPERATEUR** : un compte GitHub avec accès à
@@ -236,3 +266,18 @@ sur cette même machine via GitHub Actions (`deploy.yml`), sans répéter les
 - **Le certificat est refusé même après avoir accepté l'avertissement** :
   vérifier que le certificat a bien un `subjectAltName` (étape 4) — un `CN`
   seul ne suffit plus sur les navigateurs récents.
+- **Docker Desktop refuse de démarrer sur une machine Windows neuve** :
+  cause la plus fréquente = WSL2 non installé/activé, ou virtualisation
+  désactivée dans le BIOS. Dans Git Bash ou PowerShell :
+  ```
+  wsl --install
+  wsl --update
+  ```
+  puis redémarrer la machine et relancer Docker Desktop. Si l'erreur mentionne
+  la virtualisation (VT-x/AMD-V), elle doit être activée dans le BIOS/UEFI —
+  nécessite un redémarrage physique et l'accès au BIOS (⛔ demander à
+  l'opérateur si l'agent ne peut pas redémarrer la machine lui-même).
+- **`docker compose up` très lent ou échoue au premier lancement** : normal
+  la toute première fois — il télécharge ~6 images de plusieurs centaines de
+  Mo chacune. Vérifier la progression avec `docker compose logs -f` avant de
+  conclure à un blocage.
