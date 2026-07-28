@@ -20,15 +20,14 @@ jobs:
     name: Deploy sur le poste hopital
     runs-on: [self-hosted, certhub]
     environment: production
-    # Runner Windows : sans ceci, les etapes `run:` s'executent en PowerShell
-    # (pas bash) et toute la syntaxe bash ci-dessous (test -f, ||, {…;}) echoue.
-    # Chemin explicite obligatoire : `shell: bash` seul resout vers le bash.exe
-    # de WSL present dans C:\Windows\system32 (trouve avant Git Bash sur le
-    # PATH), qui echoue immediatement car le service tourne sous le compte
-    # systeme NETWORK SERVICE, sans distribution WSL installee.
-    defaults:
-      run:
-        shell: 'C:\Program Files\Git\bin\bash.exe -e {0}'
+    # Runner Windows : les etapes `run:` s'executent en PowerShell par defaut
+    # (pas bash) — pas de "shell:" personnalise ici. Une premiere tentative
+    # avec `shell: bash` resolvait vers C:\Windows\system32\bash.exe (le
+    # lanceur WSL, trouve avant Git Bash sur le PATH), qui echoue tout de
+    # suite car le service runner tourne sous NETWORK SERVICE sans
+    # distribution WSL. Un chemin Git Bash explicite (`C:\Program Files\...`)
+    # echoue aussi : ce runner ne gere pas l'espace dans "Program Files" dans
+    # la syntaxe `shell:`. D'ou des etapes ecrites en PowerShell ci-dessous.
 
     steps:
       # clean:false — le .env de production et les certificats TLS auto-signes
@@ -40,9 +39,9 @@ jobs:
 
       - name: Verifier la presence du .env de production
         run: |
-          test -f .env || { echo "::error::.env absent — voir README section CI/CD (a creer une seule fois a la main sur ce poste)"; exit 1; }
-          test -f api/.env || { echo "::error::api/.env absent — voir README section CI/CD"; exit 1; }
-          test -f docker/nginx/ssl/fullchain.pem || { echo "::error::certificat TLS absent — voir README"; exit 1; }
+          if (-not (Test-Path .env)) { Write-Error ".env absent — voir README section CI/CD (a creer une seule fois a la main sur ce poste)"; exit 1 }
+          if (-not (Test-Path api/.env)) { Write-Error "api/.env absent — voir README section CI/CD"; exit 1 }
+          if (-not (Test-Path docker/nginx/ssl/fullchain.pem)) { Write-Error "certificat TLS absent — voir README"; exit 1 }
 
       - name: Build des images
         run: docker compose -f docker-compose.yml -f docker-compose.prod.yml build
@@ -66,4 +65,6 @@ jobs:
         run: docker compose ps
 
       - name: Health check
-        run: curl -kfsS https://localhost/up
+        # curl.exe explicite : "curl" seul est un alias PowerShell vers
+        # Invoke-WebRequest, qui ne comprend pas les options -kfsS.
+        run: curl.exe -kfsS https://localhost/up
