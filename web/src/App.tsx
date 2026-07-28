@@ -1,121 +1,64 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { AppLayout } from './components/layout/AppLayout'
+import { ProtectedRoute } from './components/layout/ProtectedRoute'
+import { LoginPage } from './pages/LoginPage'
+import { HomeRedirect } from './pages/HomeRedirect'
+import { ReceptionPage } from './pages/reception/ReceptionPage'
+import { DoctorQueuePage } from './pages/doctor/DoctorQueuePage'
+import { CertificateEditPage } from './pages/doctor/CertificateEditPage'
+import { FormHubPage } from './pages/admin/FormHubPage'
+import { CertificateTypesPage } from './pages/admin/CertificateTypesPage'
+import { UsersPage } from './pages/admin/UsersPage'
+import { SettingsPage } from './pages/admin/SettingsPage'
+import { SystemHealthPage } from './pages/it/SystemHealthPage'
+import { DashboardPage } from './pages/dashboard/DashboardPage'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-      <div className="ticks"></div>
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route index element={<HomeRedirect />} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+            <Route element={<ProtectedRoute permission="report.view" />}>
+              <Route path="dashboard" element={<DashboardPage />} />
+            </Route>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+            <Route element={<ProtectedRoute permission="certificate.create" />}>
+              <Route path="reception" element={<ReceptionPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute permission="certificate.finalize" />}>
+              <Route path="doctor" element={<DoctorQueuePage />} />
+              <Route path="doctor/certificates/:id" element={<CertificateEditPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute permission="form_field.manage" />}>
+              <Route path="admin/form-hub" element={<FormHubPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute permission="certificate_type.manage" />}>
+              <Route path="admin/certificate-types" element={<CertificateTypesPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute permission="user.view" />}>
+              <Route path="admin/users" element={<UsersPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute permission="settings.manage" />}>
+              <Route path="admin/settings" element={<SettingsPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute role="it" />}>
+              <Route path="it/system" element={<SystemHealthPage />} />
+            </Route>
+          </Route>
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }
 

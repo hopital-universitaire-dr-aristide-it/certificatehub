@@ -19,12 +19,12 @@ class RolesAndPermissionsSeeder extends Seeder
         'reception' => [
             'auth.login', 'auth.logout', 'auth.change_own_password',
             'patient.view', 'patient.create', 'patient.update', 'patient.search',
-            'certificate.view', 'certificate.create', 'certificate.mark_paid',
+            'certificate.view', 'certificate.create', 'certificate.mark_paid', 'certificate.print',
         ],
         'doctor' => [
             'auth.login', 'auth.logout', 'auth.change_own_password',
             'patient.view', 'patient.search',
-            'certificate.view_own', 'certificate.finalize', 'certificate.print',
+            'certificate.view_own', 'certificate.finalize',
         ],
         'it' => [
             'auth.login', 'auth.logout', 'auth.change_own_password',
@@ -34,7 +34,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'auth.login', 'auth.logout', 'auth.change_own_password', 'auth.reset_user_password',
             'form_field.manage', 'certificate_type.manage', 'settings.manage',
             'user.view', 'user.create', 'user.update', 'user.deactivate', 'role.assign',
-            'report.view',
+            'report.view', 'certificate.print',
         ],
         // superadmin: toutes les permissions, assignees ci-dessous sans liste explicite
         'superadmin' => [],

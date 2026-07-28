@@ -59,7 +59,7 @@ class CertificateWorkflowTest extends TestCase
         $this->actingAs($reception, 'sanctum')->getJson('/api/v1/certificates/queue')->assertStatus(403);
     }
 
-    public function test_doctor_can_fill_and_finalize_and_print(): void
+    public function test_doctor_can_fill_and_finalize_but_not_print(): void
     {
         $type = $this->santeType();
         $certificate = Certificate::factory()->create([
@@ -76,13 +76,31 @@ class CertificateWorkflowTest extends TestCase
         $finalize->assertOk()->assertJsonPath('data.status', 'finalized');
         $this->assertNotNull($finalize->json('data.certificate_number'));
 
-        $print = $this->actingAs($doctor, 'sanctum')->get("/api/v1/certificates/{$certificate->id}/print");
+        // L'impression est reservee a l'accueil/l'admin — le medecin ne peut que previsualiser.
+        $this->actingAs($doctor, 'sanctum')->get("/api/v1/certificates/{$certificate->id}/print")->assertStatus(403);
+        $this->assertDatabaseCount('certificate_print_log', 0);
+    }
+
+    public function test_reception_and_admin_can_print_a_finalized_certificate(): void
+    {
+        $type = $this->santeType();
+        $certificate = Certificate::factory()->create([
+            'certificate_type_id' => $type->id,
+            'payment_status' => PaymentStatus::Paid,
+            'data' => ['outcome' => 'sain'],
+        ]);
+        $doctor = $this->userWithRole('doctor');
+        $this->actingAs($doctor, 'sanctum')->postJson("/api/v1/certificates/{$certificate->id}/finalize")->assertOk();
+
+        $reception = $this->userWithRole('reception');
+        $print = $this->actingAs($reception, 'sanctum')->get("/api/v1/certificates/{$certificate->id}/print");
         $print->assertOk();
         $this->assertSame('application/pdf', $print->headers->get('Content-Type'));
         $this->assertDatabaseCount('certificate_print_log', 1);
 
-        // Reimpression : autorisee, journalisee une deuxieme fois, aucun filigrane distinctif attendu.
-        $this->actingAs($doctor, 'sanctum')->get("/api/v1/certificates/{$certificate->id}/print")->assertOk();
+        // Reimpression par l'admin : autorisee, journalisee une deuxieme fois, aucun filigrane distinctif attendu.
+        $admin = $this->userWithRole('admin');
+        $this->actingAs($admin, 'sanctum')->get("/api/v1/certificates/{$certificate->id}/print")->assertOk();
         $this->assertDatabaseCount('certificate_print_log', 2);
     }
 
@@ -117,7 +135,7 @@ class CertificateWorkflowTest extends TestCase
         $this->assertDatabaseCount('certificate_print_log', 0);
     }
 
-    public function test_doctor_cannot_print_before_finalizing(): void
+    public function test_reception_cannot_print_before_finalizing(): void
     {
         $type = $this->santeType();
         $certificate = Certificate::factory()->create([
@@ -125,9 +143,9 @@ class CertificateWorkflowTest extends TestCase
             'payment_status' => PaymentStatus::Paid,
             'data' => ['outcome' => 'sain'],
         ]);
-        $doctor = $this->userWithRole('doctor');
+        $reception = $this->userWithRole('reception');
 
-        $response = $this->actingAs($doctor, 'sanctum')->getJson("/api/v1/certificates/{$certificate->id}/print");
+        $response = $this->actingAs($reception, 'sanctum')->getJson("/api/v1/certificates/{$certificate->id}/print");
 
         $response->assertStatus(422);
         $this->assertDatabaseCount('certificate_print_log', 0);

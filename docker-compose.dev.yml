@@ -1,13 +1,12 @@
 services:
-  # NOTE: pas de volume anonyme sur /var/www/html/vendor, ni de volume nomme
-  # app_storage sur /var/www/html/storage ici — contrairement au pattern HMS
-  # (vendor installe DANS le conteneur, storage isole du code), en dev tout
-  # ./api est deja bind-mounte tel quel (vendor/ installe sur l'hote via des
-  # conteneurs composer jetables, storage/ deja peuple par le scaffold Laravel).
-  # Superposer app_storage par-dessus masquerait storage/framework et
-  # storage/logs avec un volume vide, puisque le stage "development" du
-  # Dockerfile ne COPY jamais api/ dans l'image (le code vient uniquement du
-  # bind mount).
+  # NOTE: vendor/ est masque par un volume nomme (vendor_data), pas servi
+  # depuis le bind mount Windows. Chaque require() PHP d'une classe vendor
+  # traverse sinon la couche de partage de fichiers Windows -> conteneur, ce
+  # qui a mesure faisait passer un simple `php artisan --version` de <1s a
+  # ~20s (des milliers de petits fichiers dans vendor/). Meme pattern deja
+  # utilise pour node_modules sur le service web ci-dessous. storage/ reste
+  # sur le bind mount (deja peuple par le scaffold Laravel, pas assez de
+  # fichiers pour que ce soit sensible, et on veut voir les logs generes).
   app:
     # -R : autorise le pool php-fpm a tourner en user=root (www.dev.conf) —
     # necessaire car les fichiers bind-montes depuis Windows appartiennent a
@@ -16,6 +15,7 @@ services:
     command: ["php-fpm", "-R"]
     volumes:
       - ./api:/var/www/html:cached
+      - vendor_data:/var/www/html/vendor
     environment:
       APP_DEBUG: "true"
       APP_ENV:   local
@@ -24,10 +24,12 @@ services:
   worker:
     volumes:
       - ./api:/var/www/html:cached
+      - vendor_data:/var/www/html/vendor
 
   scheduler:
     volumes:
       - ./api:/var/www/html:cached
+      - vendor_data:/var/www/html/vendor
 
   # Vite dev server — hot reload React
   web:
@@ -67,3 +69,6 @@ services:
       - certhub_net
     profiles:
       - tools
+
+volumes:
+  vendor_data:
