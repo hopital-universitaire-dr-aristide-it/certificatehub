@@ -61,8 +61,8 @@ describe('UI primitives', () => {
   })
 
   it('Badge renders with the requested tone', () => {
-    render(<Badge tone="green">Paye</Badge>)
-    expect(screen.getByText('Paye')).toBeInTheDocument()
+    render(<Badge tone="green">Payé</Badge>)
+    expect(screen.getByText('Payé')).toBeInTheDocument()
   })
 
   it('IconButton exposes its label as an accessible name and handles clicks', async () => {

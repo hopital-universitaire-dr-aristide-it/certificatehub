@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
   if (!ctx) {
-    throw new Error('useAuth doit etre utilise a l\'interieur de AuthProvider')
+    throw new Error('useAuth doit être utilisé à l\'intérieur de AuthProvider')
   }
   return ctx
 }

@@ -33,9 +33,9 @@ describe('NewPatientForm', () => {
 
     const onCreated = renderForm()
 
-    await userEvent.type(screen.getByLabelText('Prenom'), 'Jean')
+    await userEvent.type(screen.getByLabelText('Prénom'), 'Jean')
     await userEvent.type(screen.getByLabelText('Nom'), 'Baptiste')
-    await userEvent.click(screen.getByText('Creer le patient'))
+    await userEvent.click(screen.getByText('Créer le patient'))
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(patient))
     expect(screen.getByText('Jean Baptist')).toBeInTheDocument()

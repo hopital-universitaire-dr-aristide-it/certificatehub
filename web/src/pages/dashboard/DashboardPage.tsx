@@ -48,11 +48,11 @@ export function DashboardPage() {
       ) : (
         <>
           <div className="flex flex-wrap gap-4">
-            <StatCard label="Certificats emis" value={String(report.volume.total)} />
-            <StatCard label="Revenu encaisse" value={money(report.revenue.total_paid)} />
+            <StatCard label="Certificats émis" value={String(report.volume.total)} />
+            <StatCard label="Revenu encaissé" value={money(report.revenue.total_paid)} />
             <StatCard label="En attente de paiement" value={String(report.revenue.unpaid_count)} />
             <StatCard
-              label="Delai moyen"
+              label="Délai moyen"
               value={report.turnaround.avg_hours !== null ? `${report.turnaround.avg_hours} h` : '—'}
             />
           </div>
@@ -74,7 +74,7 @@ export function DashboardPage() {
 
           <div className="grid grid-cols-2 gap-6">
             <Card>
-              <CardHeader title="Par medecin" />
+              <CardHeader title="Par médecin" />
               <ul className="space-y-2 text-sm">
                 {report.volume.by_doctor.map((row) => (
                   <li key={row.doctor_name} className="flex justify-between">
@@ -82,19 +82,19 @@ export function DashboardPage() {
                     <span className="font-medium">{row.count}</span>
                   </li>
                 ))}
-                {report.volume.by_doctor.length === 0 && <li className="text-neutral-500">Aucune donnee.</li>}
+                {report.volume.by_doctor.length === 0 && <li className="text-neutral-500">Aucune donnée.</li>}
               </ul>
             </Card>
 
             <Card>
-              <CardHeader title="Repartition clinique" />
+              <CardHeader title="Répartition clinique" />
               <ul className="space-y-2 text-sm">
                 <li className="flex justify-between">
                   <span>Sain</span>
                   <span className="font-medium">{report.clinical.sain_count}</span>
                 </li>
                 <li className="flex justify-between">
-                  <span>Presente des signes</span>
+                  <span>Présente des signes</span>
                   <span className="font-medium">{report.clinical.presente_signes_count}</span>
                 </li>
                 {Object.entries(report.clinical.by_sign).map(([sign, count]) => (

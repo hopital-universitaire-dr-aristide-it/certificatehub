@@ -63,7 +63,7 @@ export function UsersPage() {
                 <p className="text-sm font-medium">{user.name}</p>
                 <p className="text-xs text-neutral-500">{user.email}</p>
               </div>
-              <Badge tone={user.is_active ? 'green' : 'red'}>{user.is_active ? 'Actif' : 'Desactive'}</Badge>
+              <Badge tone={user.is_active ? 'green' : 'red'}>{user.is_active ? 'Actif' : 'Désactivé'}</Badge>
               <Select
                 value={user.roles[0] ?? ''}
                 onChange={(e) => assignRoleMutation.mutate({ userId: user.id, role: e.target.value })}
@@ -77,7 +77,7 @@ export function UsersPage() {
               </Select>
               <IconButton
                 icon={Power}
-                label={user.is_active ? 'Desactiver' : 'Reactiver'}
+                label={user.is_active ? 'Désactiver' : 'Réactiver'}
                 tone={user.is_active ? 'danger' : 'primary'}
                 onClick={() => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.is_active })}
               />
@@ -119,7 +119,7 @@ function NewUserForm({
         <Input id="new-user-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </div>
       <div>
-        <Label htmlFor="new-user-role">Role</Label>
+        <Label htmlFor="new-user-role">Rôle</Label>
         <Select id="new-user-role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
           {ROLES.map((r) => (
             <option key={r} value={r}>
@@ -129,7 +129,7 @@ function NewUserForm({
         </Select>
       </div>
       <Button disabled={!name || !email || !password} onClick={() => onSubmit({ name, email, password, role })}>
-        Creer
+        Créer
       </Button>
     </div>
   )

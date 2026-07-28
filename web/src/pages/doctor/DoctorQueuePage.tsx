@@ -21,14 +21,14 @@ export function DoctorQueuePage() {
 
   return (
     <Card>
-      <CardHeader title="File d'attente" subtitle="Certificats payes, en attente de prise en charge" />
+      <CardHeader title="File d'attente" subtitle="Certificats payés, en attente de prise en charge" />
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-neutral-200 text-neutral-500 dark:border-neutral-800">
               <th className="py-2 pr-4">Patient</th>
               <th className="py-2 pr-4">Montant</th>
-              <th className="py-2 pr-4">Enregistre le</th>
+              <th className="py-2 pr-4">Enregistré le</th>
               <th className="py-2 pr-4"></th>
             </tr>
           </thead>

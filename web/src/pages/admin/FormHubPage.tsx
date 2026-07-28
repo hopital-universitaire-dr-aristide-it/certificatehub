@@ -61,14 +61,14 @@ export function FormHubPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader title="Hub des formulaires" subtitle="Renommer les libelles, activer/desactiver les champs" />
+        <CardHeader title="Hub des formulaires" subtitle="Renommer les libellés, activer/désactiver les champs" />
         <Label htmlFor="form-select">Formulaire</Label>
         <Select
           id="form-select"
           value={selectedFormId ?? ''}
           onChange={(e) => setSelectedFormId(e.target.value ? Number(e.target.value) : null)}
         >
-          <option value="">Selectionner un formulaire...</option>
+          <option value="">Sélectionner un formulaire...</option>
           {forms?.map((form) => (
             <option key={form.id} value={form.id}>
               {form.label}
@@ -118,11 +118,11 @@ function FieldRow({
       <Input className="max-w-xs flex-1" value={label} onChange={(e) => setLabel(e.target.value)} />
       <IconButton icon={Pencil} label="Renommer" tone="primary" disabled={!isDirty} onClick={() => onRename(label)} />
       {field.label !== field.default_label && (
-        <IconButton icon={RotateCcw} label="Reinitialiser le libelle" onClick={onResetLabel} />
+        <IconButton icon={RotateCcw} label="Réinitialiser le libellé" onClick={onResetLabel} />
       )}
       <IconButton
         icon={Power}
-        label={field.is_active ? 'Desactiver' : 'Activer'}
+        label={field.is_active ? 'Désactiver' : 'Activer'}
         tone={field.is_active ? 'danger' : 'primary'}
         onClick={() => onToggleActive(!field.is_active)}
       />

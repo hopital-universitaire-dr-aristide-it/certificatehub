@@ -9,11 +9,11 @@ import type { CertificateType, FormDefinition } from '../../types'
 vi.mock('../../lib/api', () => ({ api: { get: vi.fn(), put: vi.fn(), post: vi.fn() } }))
 
 const types: CertificateType[] = [
-  { id: 1, form_definition_id: 1, form_label: 'Certificat de sante', is_active: true, fee_amount: 500, numbering_prefix: 'CS-', numbering_next_value: 4827 },
+  { id: 1, form_definition_id: 1, form_label: 'Certificat de santé', is_active: true, fee_amount: 500, numbering_prefix: 'CS-', numbering_next_value: 4827 },
 ]
 
 const forms: FormDefinition[] = [
-  { id: 1, context_key: 'certificate.sante', module: 'Certificate', label: 'Certificat de sante', description: null, is_active: true },
+  { id: 1, context_key: 'certificate.sante', module: 'Certificate', label: 'Certificat de santé', description: null, is_active: true },
 ]
 
 function renderPage() {
@@ -41,7 +41,7 @@ describe('CertificateTypesPage', () => {
     vi.mocked(api.put).mockResolvedValue({ data: {} })
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('Certificat de sante', { selector: 'p' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Certificat de santé', { selector: 'p' })).toBeInTheDocument())
 
     const feeInput = screen.getByLabelText('Tarif (HTG)', { selector: '#fee-1' })
     await userEvent.clear(feeInput)
@@ -61,10 +61,10 @@ describe('CertificateTypesPage', () => {
     vi.mocked(api.post).mockResolvedValue({ data: {} })
     renderPage()
 
-    await screen.findByText('Certificat de sante', { selector: 'option' })
+    await screen.findByText('Certificat de santé', { selector: 'option' })
     await userEvent.selectOptions(screen.getByLabelText('Formulaire'), '1')
     await userEvent.type(screen.getByLabelText('Tarif (HTG)', { selector: '#new-fee' }), '300')
-    await userEvent.click(screen.getByText('Creer'))
+    await userEvent.click(screen.getByText('Créer'))
 
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith('/certificate-types', {

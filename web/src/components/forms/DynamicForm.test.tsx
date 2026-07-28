@@ -26,21 +26,21 @@ describe('DynamicForm', () => {
     const outcome = field({
       id: 1,
       field_key: 'outcome',
-      label: 'Resultat',
+      label: 'Résultat',
       field_type: 'select',
-      config: { options: [{ value: 'sain', label: 'Sain' }, { value: 'presente_signes', label: 'Presente des signes' }] },
+      config: { options: [{ value: 'sain', label: 'Sain' }, { value: 'presente_signes', label: 'Présente des signes' }] },
     })
 
     render(<DynamicForm fields={[outcome]} values={{}} onChange={onChange} />)
 
-    await userEvent.selectOptions(screen.getByLabelText('Resultat'), 'presente_signes')
+    await userEvent.selectOptions(screen.getByLabelText('Résultat'), 'presente_signes')
     expect(onChange).toHaveBeenCalledWith('outcome', 'presente_signes')
   })
 
   it('hides conditional fields until visible_when matches', async () => {
     const onChange = vi.fn()
     const fields = [
-      field({ id: 1, field_key: 'outcome', label: 'Resultat', field_type: 'select', config: { options: [] } }),
+      field({ id: 1, field_key: 'outcome', label: 'Résultat', field_type: 'select', config: { options: [] } }),
       field({
         id: 2,
         field_key: 'sign_contagieux',
@@ -64,7 +64,7 @@ describe('DynamicForm', () => {
     const onChange = vi.fn()
     const fields = [
       field({ id: 1, field_key: 'notes', label: 'Notes', field_type: 'textarea' }),
-      field({ id: 2, field_key: 'age', label: 'Age', field_type: 'number' }),
+      field({ id: 2, field_key: 'age', label: 'Âge', field_type: 'number' }),
       field({ id: 3, field_key: 'date', label: 'Date', field_type: 'date' }),
       field({
         id: 4,
@@ -80,7 +80,7 @@ describe('DynamicForm', () => {
     await userEvent.type(screen.getByLabelText('Notes'), 'a')
     expect(onChange).toHaveBeenCalledWith('notes', expect.any(String))
 
-    await userEvent.type(screen.getByLabelText('Age'), '3')
+    await userEvent.type(screen.getByLabelText('Âge'), '3')
     expect(onChange).toHaveBeenCalledWith('age', expect.any(Number))
 
     const checkboxes = screen.getAllByRole('checkbox')

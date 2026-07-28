@@ -71,7 +71,7 @@ export function ReceptionPage() {
   function handleRegister() {
     setRegisterError(null)
     if (!selectedPatient || !certificateTypeId) {
-      setRegisterError('Selectionnez un patient et un type de certificat.')
+      setRegisterError('Sélectionnez un patient et un type de certificat.')
       return
     }
     registerVisit.mutate()
@@ -89,7 +89,7 @@ export function ReceptionPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader title="Enregistrer une visite" subtitle="Selectionner un patient existant ou en creer un nouveau" />
+        <CardHeader title="Enregistrer une visite" subtitle="Sélectionner un patient existant ou en créer un nouveau" />
         <div className="mb-4 flex gap-2">
           <Button variant={mode === 'search' ? 'primary' : 'secondary'} onClick={() => setMode('search')}>
             Patient existant
@@ -107,14 +107,14 @@ export function ReceptionPage() {
 
         {selectedPatient && (
           <p className="mt-3 text-sm">
-            Patient selectionne : <Badge tone="blue">{selectedPatient.full_name}</Badge>
+            Patient sélectionné : <Badge tone="blue">{selectedPatient.full_name}</Badge>
           </p>
         )}
 
         <div className="mt-4">
           <Label htmlFor="certificate_type">Type de certificat</Label>
           <Select id="certificate_type" value={certificateTypeId} onChange={(e) => setCertificateTypeId(e.target.value)}>
-            <option value="">Selectionner...</option>
+            <option value="">Sélectionner...</option>
             {certificateTypes?.map((type) => (
               <option key={type.id} value={type.id}>
                 {type.form_label} — {money(type.fee_amount)}
@@ -131,7 +131,7 @@ export function ReceptionPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Visites du jour" subtitle="Marquer le paiement pour liberer l'acces au medecin" />
+        <CardHeader title="Visites du jour" subtitle="Marquer le paiement pour libérer l'accès au médecin" />
         <FieldError message={printError ?? undefined} />
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -151,12 +151,12 @@ export function ReceptionPage() {
                   <td className="py-2 pr-4">{money(visit.fee_amount)}</td>
                   <td className="py-2 pr-4">
                     <Badge tone={visit.payment_status === 'paid' ? 'green' : 'amber'}>
-                      {visit.payment_status === 'paid' ? 'Paye' : 'Non paye'}
+                      {visit.payment_status === 'paid' ? 'Payé' : 'Non payé'}
                     </Badge>
                   </td>
                   <td className="py-2 pr-4">
                     <Badge tone={visit.status === 'finalized' ? 'blue' : 'neutral'}>
-                      {visit.status === 'finalized' ? 'Pret a imprimer' : 'Brouillon'}
+                      {visit.status === 'finalized' ? 'Prêt à imprimer' : 'Brouillon'}
                     </Badge>
                   </td>
                   <td className="py-2 pr-4 text-right">
@@ -164,7 +164,7 @@ export function ReceptionPage() {
                       {visit.payment_status === 'unpaid' && (
                         <IconButton
                           icon={Banknote}
-                          label="Marquer paye"
+                          label="Marquer payé"
                           tone="primary"
                           onClick={() => markPaid.mutate(visit.id)}
                           disabled={markPaid.isPending}
@@ -180,7 +180,7 @@ export function ReceptionPage() {
               {visits?.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-4 text-center text-neutral-500">
-                    Aucune visite enregistree.
+                    Aucune visite enregistrée.
                   </td>
                 </tr>
               )}

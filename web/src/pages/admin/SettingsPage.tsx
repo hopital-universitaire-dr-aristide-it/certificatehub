@@ -30,7 +30,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader title="Parametres" subtitle="Textes et valeurs configurables de l'application" />
+        <CardHeader title="Paramètres" subtitle="Textes et valeurs configurables de l'application" />
         <FieldError message={error ?? undefined} />
         <div className="space-y-3">
           {settings &&
@@ -41,10 +41,10 @@ export function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Ajouter un parametre" />
+        <CardHeader title="Ajouter un paramètre" />
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <Label htmlFor="new-key">Cle</Label>
+            <Label htmlFor="new-key">Clé</Label>
             <Input id="new-key" value={newKey} onChange={(e) => setNewKey(e.target.value)} />
           </div>
           <div>

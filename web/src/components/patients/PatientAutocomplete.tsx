@@ -53,7 +53,7 @@ export function PatientAutocomplete({ onSelect, placeholder }: PatientAutocomple
     <div ref={containerRef} className="relative">
       <Input
         value={query}
-        placeholder={placeholder ?? 'Rechercher un patient (nom, prenom...)'}
+        placeholder={placeholder ?? 'Rechercher un patient (nom, prénom...)'}
         onChange={(e) => {
           setQuery(e.target.value)
           setIsOpen(true)
@@ -68,7 +68,7 @@ export function PatientAutocomplete({ onSelect, placeholder }: PatientAutocomple
             </div>
           )}
           {!isFetching && results.length === 0 && (
-            <p className="px-3 py-2 text-sm text-neutral-500">Aucun patient trouve.</p>
+            <p className="px-3 py-2 text-sm text-neutral-500">Aucun patient trouvé.</p>
           )}
           {results.map((patient) => (
             <button

@@ -52,7 +52,7 @@ export function CertificateTypesPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader title="Types de certificats" subtitle="Tarifs et numerotation" />
+        <CardHeader title="Types de certificats" subtitle="Tarifs et numérotation" />
         <FieldError message={error ?? undefined} />
         <div className="space-y-3">
           {types?.map((type) => (
@@ -96,11 +96,11 @@ function CertificateTypeRow({
         <Input id={`fee-${type.id}`} type="number" className="w-28" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)} />
       </div>
       <div>
-        <Label htmlFor={`prefix-${type.id}`}>Prefixe</Label>
+        <Label htmlFor={`prefix-${type.id}`}>Préfixe</Label>
         <Input id={`prefix-${type.id}`} className="w-24" value={numberingPrefix} onChange={(e) => setNumberingPrefix(e.target.value)} />
       </div>
       <div>
-        <Label htmlFor={`next-${type.id}`}>Prochain numero</Label>
+        <Label htmlFor={`next-${type.id}`}>Prochain numéro</Label>
         <Input
           id={`next-${type.id}`}
           type="number"
@@ -123,7 +123,7 @@ function CertificateTypeRow({
       />
       <IconButton
         icon={Power}
-        label={isActive ? 'Desactiver' : 'Activer'}
+        label={isActive ? 'Désactiver' : 'Activer'}
         tone={isActive ? 'danger' : 'primary'}
         onClick={() => {
           setIsActive(!isActive)
@@ -151,7 +151,7 @@ function NewCertificateTypeForm({
       <div>
         <Label htmlFor="new-form">Formulaire</Label>
         <Select id="new-form" value={formDefinitionId} onChange={(e) => setFormDefinitionId(e.target.value)}>
-          <option value="">Selectionner...</option>
+          <option value="">Sélectionner...</option>
           {forms.map((form) => (
             <option key={form.id} value={form.id}>
               {form.label}
@@ -164,11 +164,11 @@ function NewCertificateTypeForm({
         <Input id="new-fee" type="number" className="w-28" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)} />
       </div>
       <div>
-        <Label htmlFor="new-prefix">Prefixe</Label>
+        <Label htmlFor="new-prefix">Préfixe</Label>
         <Input id="new-prefix" className="w-24" value={numberingPrefix} onChange={(e) => setNumberingPrefix(e.target.value)} />
       </div>
       <div>
-        <Label htmlFor="new-next">Prochain numero</Label>
+        <Label htmlFor="new-next">Prochain numéro</Label>
         <Input
           id="new-next"
           type="number"
@@ -188,7 +188,7 @@ function NewCertificateTypeForm({
           })
         }
       >
-        Creer
+        Créer
       </Button>
     </div>
   )

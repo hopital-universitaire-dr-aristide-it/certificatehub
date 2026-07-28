@@ -47,7 +47,7 @@ export function NewPatientForm({ onCreated }: NewPatientFormProps) {
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label htmlFor="first_name">Prenom</Label>
+          <Label htmlFor="first_name">Prénom</Label>
           <Input id="first_name" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
         </div>
         <div>
@@ -57,9 +57,9 @@ export function NewPatientForm({ onCreated }: NewPatientFormProps) {
         <div>
           <Label htmlFor="sex">Sexe</Label>
           <Select id="sex" value={sex} onChange={(e) => setSex(e.target.value)}>
-            <option value="">Non precise</option>
+            <option value="">Non précisé</option>
             <option value="M">Masculin</option>
-            <option value="F">Feminin</option>
+            <option value="F">Féminin</option>
           </Select>
         </div>
         <div>
@@ -67,7 +67,7 @@ export function NewPatientForm({ onCreated }: NewPatientFormProps) {
           <Input id="date_of_birth" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
         </div>
         <div className="col-span-2">
-          <Label htmlFor="residence">Residence</Label>
+          <Label htmlFor="residence">Résidence</Label>
           <Input id="residence" value={residence} onChange={(e) => setResidence(e.target.value)} />
         </div>
       </div>
@@ -75,7 +75,7 @@ export function NewPatientForm({ onCreated }: NewPatientFormProps) {
       {duplicates.length > 0 && (
         <div className="rounded-xl bg-amber-50 p-3 text-sm dark:bg-amber-900/20">
           <p className="mb-1 font-medium text-amber-800 dark:text-amber-300">
-            Doublons potentiels detectes :
+            Doublons potentiels détectés :
           </p>
           <ul className="space-y-1">
             {duplicates.map((d) => (
@@ -88,7 +88,7 @@ export function NewPatientForm({ onCreated }: NewPatientFormProps) {
         </div>
       )}
       <Button type="submit" disabled={mutation.isPending}>
-        {mutation.isPending ? 'Enregistrement...' : 'Creer le patient'}
+        {mutation.isPending ? 'Enregistrement...' : 'Créer le patient'}
       </Button>
     </form>
   )

@@ -15,7 +15,7 @@ vi.mock('../../lib/api', async () => {
 vi.mock('../../lib/pdf', () => ({ openPdfInNewTab: vi.fn().mockResolvedValue(undefined) }))
 
 const certificateTypes: CertificateType[] = [
-  { id: 1, form_definition_id: 1, form_label: 'Certificat de sante', is_active: true, fee_amount: 500, numbering_prefix: null, numbering_next_value: 4827 },
+  { id: 1, form_definition_id: 1, form_label: 'Certificat de santé', is_active: true, fee_amount: 500, numbering_prefix: null, numbering_next_value: 4827 },
 ]
 
 const visit: Certificate = {
@@ -52,15 +52,15 @@ describe('ReceptionPage', () => {
   it('lists today\'s visits with payment status', async () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
-    expect(screen.getByText('Non paye')).toBeInTheDocument()
+    expect(screen.getByText('Non payé')).toBeInTheDocument()
   })
 
   it('marks a visit as paid', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { ...visit, payment_status: 'paid' } })
     renderPage()
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Marquer paye' })).toBeInTheDocument())
-    await userEvent.click(screen.getByRole('button', { name: 'Marquer paye' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Marquer payé' })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Marquer payé' }))
 
     expect(api.post).toHaveBeenCalledWith('/visits/10/mark-paid')
   })
@@ -69,13 +69,13 @@ describe('ReceptionPage', () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('Enregistrer la visite')).toBeInTheDocument())
     await userEvent.click(screen.getByText('Enregistrer la visite'))
-    expect(screen.getByText('Selectionnez un patient et un type de certificat.')).toBeInTheDocument()
+    expect(screen.getByText('Sélectionnez un patient et un type de certificat.')).toBeInTheDocument()
   })
 
   it('switches to the new-patient form', async () => {
     renderPage()
     await userEvent.click(screen.getByText('Nouveau patient'))
-    expect(screen.getByLabelText('Prenom')).toBeInTheDocument()
+    expect(screen.getByLabelText('Prénom')).toBeInTheDocument()
   })
 
   it('shows a print button for finalized visits when the user has certificate.print', async () => {
@@ -86,7 +86,7 @@ describe('ReceptionPage', () => {
     })
     renderPage(['certificate.create', 'certificate.mark_paid', 'certificate.print'])
 
-    await waitFor(() => expect(screen.getByText('Pret a imprimer')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Prêt à imprimer')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: 'Imprimer' }))
     expect(openPdfInNewTab).toHaveBeenCalledWith('/certificates/10/print')
   })
@@ -99,7 +99,7 @@ describe('ReceptionPage', () => {
     })
     renderPage(['certificate.create', 'certificate.mark_paid'])
 
-    await waitFor(() => expect(screen.getByText('Pret a imprimer')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Prêt à imprimer')).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Imprimer' })).not.toBeInTheDocument()
   })
 })

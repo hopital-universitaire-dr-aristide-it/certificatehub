@@ -23,7 +23,7 @@ describe('AppLayout', () => {
       </Routes>,
     )
 
-    expect(screen.getByText('File d\'attente medecin')).toBeInTheDocument()
+    expect(screen.getByText('File d\'attente médecin')).toBeInTheDocument()
     expect(screen.queryByText('Utilisateurs')).not.toBeInTheDocument()
     expect(screen.getByText('Dr. Aristide')).toBeInTheDocument()
   })
@@ -40,7 +40,7 @@ describe('AppLayout', () => {
       </Routes>,
     )
 
-    await userEvent.click(screen.getByText('Se deconnecter'))
+    await userEvent.click(screen.getByText('Se déconnecter'))
     expect(api.post).toHaveBeenCalledWith('/auth/logout')
   })
 })

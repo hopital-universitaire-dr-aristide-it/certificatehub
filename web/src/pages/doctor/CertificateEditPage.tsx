@@ -105,13 +105,13 @@ export function CertificateEditPage() {
           title={certificate.patient_name ?? 'Patient'}
           subtitle={certificateType?.form_label ?? undefined}
           action={
-            <Badge tone={isFinalized ? 'blue' : 'neutral'}>{isFinalized ? 'Finalise' : 'Brouillon'}</Badge>
+            <Badge tone={isFinalized ? 'blue' : 'neutral'}>{isFinalized ? 'Finalisé' : 'Brouillon'}</Badge>
           }
         />
         {patient && (
           <dl className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <dt className="text-neutral-500">Age</dt>
+              <dt className="text-neutral-500">Âge</dt>
               <dd>{patient.age ?? '—'}</dd>
             </div>
             <div>
@@ -119,7 +119,7 @@ export function CertificateEditPage() {
               <dd>{patient.sex ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-neutral-500">Residence</dt>
+              <dt className="text-neutral-500">Résidence</dt>
               <dd>{patient.residence ?? '—'}</dd>
             </div>
           </dl>
@@ -143,7 +143,7 @@ export function CertificateEditPage() {
             </Button>
           )}
           <Button variant="secondary" onClick={handlePreview} disabled={isBusy}>
-            Apercu
+            Aperçu
           </Button>
           {!isFinalized && (
             <Button variant="secondary" onClick={() => finalizeMutation.mutate()} disabled={finalizeMutation.isPending}>
@@ -153,7 +153,7 @@ export function CertificateEditPage() {
         </div>
         {isFinalized && (
           <p className="mt-3 text-sm text-neutral-500">
-            Certificat finalise — pret a etre imprime a l'accueil.
+            Certificat finalisé — prêt à être imprimé à l'accueil.
           </p>
         )}
       </Card>

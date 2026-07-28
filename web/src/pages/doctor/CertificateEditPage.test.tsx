@@ -16,7 +16,7 @@ vi.mock('../../lib/api', async () => {
 vi.mock('../../lib/pdf', () => ({ openPdfInNewTab: vi.fn().mockResolvedValue(undefined) }))
 
 const certificateTypes: CertificateType[] = [
-  { id: 1, form_definition_id: 1, form_label: 'Certificat de sante', is_active: true, fee_amount: 500, numbering_prefix: null, numbering_next_value: 4827 },
+  { id: 1, form_definition_id: 1, form_label: 'Certificat de santé', is_active: true, fee_amount: 500, numbering_prefix: null, numbering_next_value: 4827 },
 ]
 
 const patient: Patient = {
@@ -36,13 +36,13 @@ const fields: FormField[] = [
   {
     id: 1,
     field_key: 'outcome',
-    label: 'Resultat',
-    default_label: 'Resultat',
+    label: 'Résultat',
+    default_label: 'Résultat',
     field_type: 'select',
     is_required: true,
     is_active: true,
     sort_order: 0,
-    config: { options: [{ value: 'sain', label: 'Sain' }, { value: 'presente_signes', label: 'Presente des signes' }] },
+    config: { options: [{ value: 'sain', label: 'Sain' }, { value: 'presente_signes', label: 'Présente des signes' }] },
     children: [],
   },
 ]
@@ -99,7 +99,7 @@ describe('CertificateEditPage', () => {
 
     await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
     expect(screen.getByText('35')).toBeInTheDocument()
-    expect(screen.getByLabelText('Resultat *')).toBeInTheDocument()
+    expect(screen.getByLabelText('Résultat *')).toBeInTheDocument()
     expect(screen.getByText('Enregistrer')).toBeInTheDocument()
     expect(screen.getByText('Finaliser')).toBeInTheDocument()
   })
@@ -128,7 +128,7 @@ describe('CertificateEditPage', () => {
     renderPage(draftCertificate({ status: 'finalized' }))
 
     await waitFor(() =>
-      expect(screen.getByText(/pret a etre imprime a l'accueil/)).toBeInTheDocument(),
+      expect(screen.getByText(/prêt à être imprimé à l'accueil/)).toBeInTheDocument(),
     )
     expect(screen.queryByText('Finaliser')).not.toBeInTheDocument()
     expect(screen.queryByText('Enregistrer')).not.toBeInTheDocument()
@@ -137,8 +137,8 @@ describe('CertificateEditPage', () => {
 
   it('opens a preview PDF', async () => {
     renderPage(draftCertificate())
-    await waitFor(() => expect(screen.getByText('Apercu')).toBeInTheDocument())
-    await userEvent.click(screen.getByText('Apercu'))
+    await waitFor(() => expect(screen.getByText('Aperçu')).toBeInTheDocument())
+    await userEvent.click(screen.getByText('Aperçu'))
     expect(openPdfInNewTab).toHaveBeenCalledWith('/certificates/1/preview')
   })
 })

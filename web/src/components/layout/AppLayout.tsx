@@ -14,12 +14,12 @@ export function AppLayout() {
   const navItems: NavItem[] = [
     { to: '/dashboard', label: 'Tableau de bord', show: hasPermission('report.view') },
     { to: '/reception', label: 'Accueil', show: hasPermission('certificate.create') },
-    { to: '/doctor', label: 'File d\'attente medecin', show: hasPermission('certificate.finalize') },
+    { to: '/doctor', label: 'File d\'attente médecin', show: hasPermission('certificate.finalize') },
     { to: '/admin/form-hub', label: 'Formulaires', show: hasPermission('form_field.manage') },
     { to: '/admin/certificate-types', label: 'Types de certificats', show: hasPermission('certificate_type.manage') },
     { to: '/admin/users', label: 'Utilisateurs', show: hasPermission('user.view') },
-    { to: '/admin/settings', label: 'Parametres', show: hasPermission('settings.manage') },
-    { to: '/it/system', label: 'Systeme', show: hasRole('it') },
+    { to: '/admin/settings', label: 'Paramètres', show: hasPermission('settings.manage') },
+    { to: '/it/system', label: 'Système', show: hasRole('it') },
   ]
 
   return (
@@ -52,7 +52,7 @@ export function AppLayout() {
           <p className="px-2 text-sm font-medium">{user?.name}</p>
           <p className="px-2 text-xs text-neutral-500 dark:text-neutral-400">{user?.roles.join(', ')}</p>
           <Button variant="ghost" className="mt-2 w-full justify-start" onClick={logout}>
-            Se deconnecter
+            Se déconnecter
           </Button>
         </div>
       </aside>

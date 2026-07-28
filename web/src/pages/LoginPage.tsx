@@ -36,7 +36,7 @@ export function LoginPage() {
         <div className="mb-6 flex flex-col items-center text-center">
           <h1 className="text-xl font-semibold tracking-tight">CertificateHub</h1>
           <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-            Hopital Universitaire Dr. Aristide
+            Hôpital Universitaire Dr. Aristide
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

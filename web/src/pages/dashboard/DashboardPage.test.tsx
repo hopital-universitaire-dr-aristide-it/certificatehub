@@ -24,7 +24,7 @@ const report: ReportSummary = {
     total: 12,
     by_day: [{ day: '2026-07-01', count: 3 }],
     by_doctor: [{ doctor_name: 'Dr. Test', count: 9 }],
-    by_certificate_type: [{ type_label: 'Certificat de sante', count: 12 }],
+    by_certificate_type: [{ type_label: 'Certificat de santé', count: 12 }],
   },
   turnaround: { avg_hours: 2.5 },
   revenue: { total_paid: 6000, unpaid_count: 1, by_day: [] },

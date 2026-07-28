@@ -21,8 +21,8 @@ describe('apiErrorMessage', () => {
   })
 
   it('falls back to the message field', () => {
-    const error = axiosErrorWithData({ message: 'Non autorise.' })
-    expect(apiErrorMessage(error)).toBe('Non autorise.')
+    const error = axiosErrorWithData({ message: 'Non autorisé.' })
+    expect(apiErrorMessage(error)).toBe('Non autorisé.')
   })
 
   it('returns a generic message for non-axios errors', () => {

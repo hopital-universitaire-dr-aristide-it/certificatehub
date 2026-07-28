@@ -40,7 +40,7 @@ describe('SettingsPage', () => {
     renderPage()
 
     await screen.findByLabelText('directeur_medical_name')
-    await userEvent.type(screen.getByLabelText('Cle'), 'hopital_telephone')
+    await userEvent.type(screen.getByLabelText('Clé'), 'hopital_telephone')
     await userEvent.type(screen.getByLabelText('Valeur'), '+509 1234-5678')
     await userEvent.click(screen.getByText('Ajouter'))
 

@@ -33,7 +33,7 @@ describe('UsersPage', () => {
     renderPage()
 
     await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
-    await userEvent.click(screen.getByRole('button', { name: 'Desactiver' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Désactiver' }))
 
     expect(api.post).toHaveBeenCalledWith('/users/1/deactivate')
   })
@@ -46,7 +46,7 @@ describe('UsersPage', () => {
     await userEvent.type(screen.getByLabelText('Nom'), 'Bob')
     await userEvent.type(screen.getByLabelText('E-mail'), 'bob@huda.ht')
     await userEvent.type(screen.getByLabelText('Mot de passe'), 'password1')
-    await userEvent.click(screen.getByText('Creer'))
+    await userEvent.click(screen.getByText('Créer'))
 
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith('/users', {

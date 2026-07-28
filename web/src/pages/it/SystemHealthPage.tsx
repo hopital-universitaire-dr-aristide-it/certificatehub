@@ -24,7 +24,7 @@ export function SystemHealthPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader title="Etat des services" />
+        <CardHeader title="État des services" />
         <div className="flex gap-3">
           {health &&
             Object.entries(health).map(([service, status]) => (
@@ -37,7 +37,7 @@ export function SystemHealthPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Journal applicatif" subtitle="200 dernieres lignes" />
+        <CardHeader title="Journal applicatif" subtitle="200 dernières lignes" />
         <pre className="max-h-96 overflow-auto rounded-xl bg-neutral-900 p-4 text-xs text-neutral-200">
           {logs && logs.length > 0 ? logs.join('\n') : 'Aucun log.'}
         </pre>

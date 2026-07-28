@@ -119,7 +119,7 @@ function DynamicFieldControl({
     case 'select':
       return (
         <Select id={id} value={stringValue} disabled={disabled} onChange={(e) => onChange(field.field_key, e.target.value)}>
-          <option value="">Selectionner...</option>
+          <option value="">Sélectionner...</option>
           {field.config?.options?.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

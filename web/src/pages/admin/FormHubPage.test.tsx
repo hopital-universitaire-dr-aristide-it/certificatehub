@@ -9,15 +9,15 @@ import type { FormDefinition, FormField } from '../../types'
 vi.mock('../../lib/api', () => ({ api: { get: vi.fn(), patch: vi.fn(), post: vi.fn() } }))
 
 const forms: FormDefinition[] = [
-  { id: 1, context_key: 'certificate.sante', module: 'Certificate', label: 'Certificat de sante', description: null, is_active: true },
+  { id: 1, context_key: 'certificate.sante', module: 'Certificate', label: 'Certificat de santé', description: null, is_active: true },
 ]
 
 const fields: FormField[] = [
   {
     id: 1,
     field_key: 'outcome',
-    label: 'Resultat',
-    default_label: 'Resultat',
+    label: 'Résultat',
+    default_label: 'Résultat',
     field_type: 'select',
     is_required: true,
     is_active: true,
@@ -51,12 +51,12 @@ describe('FormHubPage', () => {
     vi.mocked(api.patch).mockResolvedValue({ data: {} })
     renderPage()
 
-    await screen.findByText('Certificat de sante')
+    await screen.findByText('Certificat de santé')
     await userEvent.selectOptions(screen.getByLabelText('Formulaire'), '1')
 
-    await waitFor(() => expect(screen.getByDisplayValue('Resultat')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByDisplayValue('Résultat')).toBeInTheDocument())
 
-    const input = screen.getByDisplayValue('Resultat')
+    const input = screen.getByDisplayValue('Résultat')
     await userEvent.clear(input)
     await userEvent.type(input, 'Diagnostic')
     await userEvent.click(screen.getByRole('button', { name: 'Renommer' }))
@@ -68,10 +68,10 @@ describe('FormHubPage', () => {
     vi.mocked(api.patch).mockResolvedValue({ data: {} })
     renderPage()
 
-    await screen.findByText('Certificat de sante')
+    await screen.findByText('Certificat de santé')
     await userEvent.selectOptions(screen.getByLabelText('Formulaire'), '1')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Desactiver' })).toBeInTheDocument())
-    await userEvent.click(screen.getByRole('button', { name: 'Desactiver' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Désactiver' })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Désactiver' }))
 
     expect(api.patch).toHaveBeenCalledWith('/form-fields/1/active', { is_active: false })
   })

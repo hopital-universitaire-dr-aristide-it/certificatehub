@@ -45,6 +45,6 @@ describe('PatientAutocomplete', () => {
     renderAutocomplete()
     await userEvent.type(screen.getByPlaceholderText(/rechercher un patient/i), 'Zz')
 
-    await waitFor(() => expect(screen.getByText('Aucun patient trouve.')).toBeInTheDocument(), { timeout: 2000 })
+    await waitFor(() => expect(screen.getByText('Aucun patient trouvé.')).toBeInTheDocument(), { timeout: 2000 })
   })
 })
