@@ -60,6 +60,12 @@ jobs:
       - name: Demarrer / mettre a jour la stack
         run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
+      # nginx resout et cache l'IP interne de "app" au demarrage ; sans ce
+      # redemarrage, toute recreation de "app" (nouvelle image) laisse nginx
+      # pointer vers une IP morte et renvoyer 502 (voir DEPLOYMENT.md).
+      - name: Redemarrer nginx (cache DNS interne)
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml restart nginx
+
       - name: Migrations
         run: docker compose exec -T app php artisan migrate --force
 
