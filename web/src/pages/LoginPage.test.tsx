@@ -35,4 +35,17 @@ describe('LoginPage', () => {
     renderWithProviders(<LoginPage />, { route: '/login' })
     expect(screen.queryByText('Se connecter')).not.toBeInTheDocument()
   })
+
+  it('toggles password visibility when the eye icon is clicked', async () => {
+    renderWithProviders(<LoginPage />, { route: '/login' })
+
+    const passwordInput = screen.getByLabelText('Mot de passe')
+    expect(passwordInput).toHaveAttribute('type', 'password')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Afficher le mot de passe' }))
+    expect(passwordInput).toHaveAttribute('type', 'text')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Masquer le mot de passe' }))
+    expect(passwordInput).toHaveAttribute('type', 'password')
+  })
 })
