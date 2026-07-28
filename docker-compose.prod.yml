@@ -33,11 +33,7 @@ services:
           FILE=/backups/local/backup_$${TIMESTAMP}.dump &&
           pg_dump -h postgres -U $${DB_USERNAME} $${DB_DATABASE} -F c -f $${FILE} &&
           echo \"Backup local OK: $${FILE}\" &&
-          curl -s -u $${BACKBLAZE_KEY_ID}:$${BACKBLAZE_APP_KEY} \
-               -T $${FILE} \
-               https://s3.us-east-005.backblazeb2.com/$${BACKBLAZE_BUCKET}/backups/postgres/backup_$${TIMESTAMP}.dump \
-          && echo \"Backup B2 OK: backup_$${TIMESTAMP}.dump\" \
-          || echo \"ATTENTION: echec upload B2 (backup local conserve, sera retente au prochain cycle)\" ;
+          curl -sf -u $${BACKBLAZE_KEY_ID}:$${BACKBLAZE_APP_KEY} -T $${FILE} https://s3.us-east-005.backblazeb2.com/$${BACKBLAZE_BUCKET}/backups/postgres/backup_$${TIMESTAMP}.dump && echo \"Backup B2 OK: backup_$${TIMESTAMP}.dump\" || echo \"ATTENTION: echec upload B2 (backup local conserve, sera retente au prochain cycle)\" ;
           find /backups/local -name 'backup_*.dump' -mtime +14 -delete &&
           sleep 86400;
         done
