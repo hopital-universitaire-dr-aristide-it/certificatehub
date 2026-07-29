@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { HomeRedirect } from './pages/HomeRedirect'
 import { ReceptionPage } from './pages/reception/ReceptionPage'
+import { ReceptionCertificatesPage } from './pages/reception/ReceptionCertificatesPage'
 import { DoctorQueuePage } from './pages/doctor/DoctorQueuePage'
 import { MyCertificatesPage } from './pages/doctor/MyCertificatesPage'
 import { CertificateEditPage } from './pages/doctor/CertificateEditPage'
@@ -32,6 +33,7 @@ function App() {
 
             <Route element={<ProtectedRoute permission="certificate.create" />}>
               <Route path="reception" element={<ReceptionPage />} />
+              <Route path="reception/certificates" element={<ReceptionCertificatesPage />} />
             </Route>
 
             <Route element={<ProtectedRoute permission="certificate.finalize" />}>

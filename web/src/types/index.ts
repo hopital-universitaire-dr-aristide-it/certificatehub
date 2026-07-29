@@ -48,6 +48,7 @@ export interface Certificate {
   patient_name: string | null
   certificate_type_id: number
   doctor_id: number | null
+  doctor_name?: string | null
   fee_amount: number
   certificate_number: string | null
   status: CertificateStatus

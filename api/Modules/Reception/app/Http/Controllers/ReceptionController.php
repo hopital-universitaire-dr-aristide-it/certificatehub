@@ -14,12 +14,13 @@ class ReceptionController extends Controller
     public function __construct(private readonly ReceptionService $receptionService) {}
 
     /**
-     * Reutilise a la fois par l'accueil (ses propres visites du jour) et par
-     * le nouvel ecran d'oversight admin/it (filtres nom/date en plus).
+     * Reutilise a la fois par l'accueil (ses propres visites du jour, et
+     * l'ecran "Consulter certificats" avec filtres nom/medecin/date) et par
+     * l'ecran d'oversight admin/it (filtres nom/date en plus).
      */
     public function index(Request $request)
     {
-        $query = Certificate::with('patient')->orderByDesc('created_at');
+        $query = Certificate::with(['patient', 'doctor'])->orderByDesc('created_at');
 
         if ($request->filled('payment_status')) {
             $query->where('payment_status', $request->string('payment_status')->toString());
@@ -32,6 +33,13 @@ class ReceptionController extends Controller
                     "unaccent_lower(first_name || ' ' || last_name) LIKE unaccent_lower(?)",
                     ['%'.$name.'%'],
                 );
+            });
+        }
+
+        if ($request->filled('doctor_name')) {
+            $name = $request->string('doctor_name')->toString();
+            $query->whereHas('doctor', function ($doctorQuery) use ($name) {
+                $doctorQuery->whereRaw('unaccent_lower(name) LIKE unaccent_lower(?)', ['%'.$name.'%']);
             });
         }
 

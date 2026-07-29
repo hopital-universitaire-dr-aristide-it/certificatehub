@@ -166,4 +166,20 @@ class ReceptionManagementTest extends TestCase
         $this->assertCount(1, $response->json('data'));
         $this->assertSame($recent->id, $response->json('data.0.id'));
     }
+
+    public function test_visits_can_be_filtered_by_doctor_name(): void
+    {
+        $doctorA = User::factory()->create(['name' => 'Dr Aristide']);
+        $doctorB = User::factory()->create(['name' => 'Dr Beauvoir']);
+        $match = Certificate::factory()->create(['doctor_id' => $doctorA->id]);
+        Certificate::factory()->create(['doctor_id' => $doctorB->id]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits?doctor_name=aristide');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame($match->id, $response->json('data.0.id'));
+        $this->assertSame('Dr Aristide', $response->json('data.0.doctor_name'));
+    }
 }

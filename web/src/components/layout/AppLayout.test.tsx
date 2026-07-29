@@ -28,6 +28,20 @@ describe('AppLayout', () => {
     expect(screen.getByText('Dr. Aristide')).toBeInTheDocument()
   })
 
+  it('shows the certificates search link for reception', () => {
+    seedUser(makeUser({ roles: ['reception'], permissions: ['certificate.create'] }))
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<p>home</p>} />
+        </Route>
+      </Routes>,
+    )
+
+    expect(screen.getByText('Consulter certificats')).toBeInTheDocument()
+  })
+
   it('logs out when the button is clicked', async () => {
     seedUser(makeUser({ permissions: ['report.view'] }))
 
