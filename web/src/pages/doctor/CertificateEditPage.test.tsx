@@ -63,16 +63,21 @@ function draftCertificate(overrides: Partial<Certificate> = {}): Certificate {
     finalized_at: null,
     created_at: new Date().toISOString(),
     deleted_at: null,
-    data: {},
+    form_data: {},
     ...overrides,
   }
 }
 
+// Laravel enveloppe automatiquement toute JsonResource retournee seule d'un
+// controleur dans {"data": ...} — les mocks doivent reproduire ce double
+// niveau exactement comme le vrai backend, sinon un bug de "un seul niveau
+// de deballage manquant" cote frontend passe inapercu en test (c'est
+// exactement ce qui s'est produit en production).
 function renderPage(certificate: Certificate) {
   vi.mocked(api.get).mockImplementation((url: string) => {
-    if (url === '/certificates/1') return Promise.resolve({ data: certificate })
+    if (url === '/certificates/1') return Promise.resolve({ data: { data: certificate } })
     if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
-    if (url === '/patients/1') return Promise.resolve({ data: patient })
+    if (url === '/patients/1') return Promise.resolve({ data: { data: patient } })
     if (url === '/form-definitions/1/fields') return Promise.resolve({ data: { data: fields } })
     return Promise.resolve({ data: { data: [] } })
   })
@@ -107,19 +112,73 @@ describe('CertificateEditPage', () => {
     expect(screen.getByText('Finaliser')).toBeInTheDocument()
   })
 
-  it('saves form data', async () => {
-    renderPage(draftCertificate())
-    vi.mocked(api.put).mockResolvedValue({ data: draftCertificate() })
+  it('shows an error instead of an infinite loading state when the certificate fails to load', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificates/1') return Promise.reject({ isAxiosError: true, response: { data: { message: 'Certificat introuvable.' } } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/doctor/certificates/1']}>
+          <Routes>
+            <Route path="/doctor/certificates/:id" element={<CertificateEditPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Certificat introuvable.')).toBeInTheDocument())
+  })
+
+  it('saves form data and shows a saved indicator', async () => {
+    // Le GET doit refleter la nouvelle valeur apres l'invalidation qui suit
+    // le PUT (comme le ferait le vrai backend) — un mock GET fige sur la
+    // certification initiale ne detecterait jamais une regression sur le
+    // deballage/l'affichage post-sauvegarde.
+    let currentCertificate = draftCertificate()
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificates/1') return Promise.resolve({ data: { data: currentCertificate } })
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/patients/1') return Promise.resolve({ data: { data: patient } })
+      if (url === '/form-definitions/1/fields') return Promise.resolve({ data: { data: fields } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    vi.mocked(api.put).mockImplementation(async () => {
+      currentCertificate = draftCertificate({ form_data: { outcome: 'sain' } })
+      return { data: { data: currentCertificate } }
+    })
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/doctor/certificates/1']}>
+          <Routes>
+            <Route path="/doctor/certificates/:id" element={<CertificateEditPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
 
     await waitFor(() => expect(screen.getByText('Enregistrer')).toBeInTheDocument())
+    expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
+
     await userEvent.click(screen.getByText('Enregistrer'))
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/certificates/1', { data: {} }))
+    await waitFor(() => expect(screen.getByText('Enregistré')).toBeInTheDocument())
+  })
+
+  it('disables the preview button until the certificate has been saved at least once', async () => {
+    renderPage(draftCertificate({ form_data: {} }))
+    await waitFor(() => expect(screen.getByText('Aperçu')).toBeInTheDocument())
+    expect(screen.getByText('Aperçu')).toBeDisabled()
+    expect(screen.getByText("Aperçu non disponible avant le premier enregistrement.")).toBeInTheDocument()
   })
 
   it('finalizes the certificate', async () => {
     renderPage(draftCertificate())
-    vi.mocked(api.post).mockResolvedValue({ data: draftCertificate({ status: 'finalized' }) })
+    vi.mocked(api.post).mockResolvedValue({ data: { data: draftCertificate({ status: 'finalized' }) } })
 
     await waitFor(() => expect(screen.getByText('Finaliser')).toBeInTheDocument())
     await userEvent.click(screen.getByText('Finaliser'))
@@ -127,7 +186,7 @@ describe('CertificateEditPage', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/certificates/1/finalize'))
   })
 
-  it('hides finalize/save once finalized and shows a print-at-reception notice instead of a print button', async () => {
+  it('hides finalize/save once finalized but keeps the preview button, and shows a print-at-reception notice', async () => {
     renderPage(draftCertificate({ status: 'finalized' }))
 
     await waitFor(() =>
@@ -136,11 +195,13 @@ describe('CertificateEditPage', () => {
     expect(screen.queryByText('Finaliser')).not.toBeInTheDocument()
     expect(screen.queryByText('Enregistrer')).not.toBeInTheDocument()
     expect(screen.queryByText('Imprimer')).not.toBeInTheDocument()
+    expect(screen.getByText('Aperçu')).toBeInTheDocument()
   })
 
-  it('opens a preview PDF', async () => {
-    renderPage(draftCertificate())
+  it('opens a preview PDF once the certificate has saved data', async () => {
+    renderPage(draftCertificate({ form_data: { outcome: 'sain' } }))
     await waitFor(() => expect(screen.getByText('Aperçu')).toBeInTheDocument())
+    expect(screen.getByText('Aperçu')).not.toBeDisabled()
     await userEvent.click(screen.getByText('Aperçu'))
     expect(openPdfInNewTab).toHaveBeenCalledWith('/certificates/1/preview')
   })

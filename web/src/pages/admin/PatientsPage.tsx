@@ -10,22 +10,34 @@ import { FieldError } from '../../components/ui/Field'
 import { PatientAutocomplete } from '../../components/patients/PatientAutocomplete'
 import type { Patient, PatientSummary, PaginatedResponse } from '../../types'
 
+type View = 'list' | 'search' | 'trash'
+
 export function PatientsPage() {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | Patient | null>(null)
-  const [showTrashed, setShowTrashed] = useState(false)
+  const [view, setView] = useState<View>('list')
 
-  const { data: trashedPatients } = useQuery({
+  const { data: patients, isError: isListError } = useQuery({
+    queryKey: ['patients'],
+    queryFn: async () => {
+      const { data } = await api.get<PaginatedResponse<Patient>>('/patients')
+      return data.data
+    },
+    enabled: view === 'list',
+  })
+
+  const { data: trashedPatients, isError: isTrashError } = useQuery({
     queryKey: ['patients-trashed'],
     queryFn: async () => {
       const { data } = await api.get<PaginatedResponse<Patient>>('/patients/trashed')
       return data.data
     },
-    enabled: showTrashed,
+    enabled: view === 'trash',
   })
 
   function invalidate() {
+    queryClient.invalidateQueries({ queryKey: ['patients'] })
     queryClient.invalidateQueries({ queryKey: ['patients-trashed'] })
   }
 
@@ -48,21 +60,72 @@ export function PatientsPage() {
     onError: (err) => setError(apiErrorMessage(err)),
   })
 
+  function confirmDelete(patient: { id: number; full_name: string }) {
+    if (window.confirm(`Supprimer le dossier de ${patient.full_name} ? Il pourra être rétabli depuis la corbeille.`)) {
+      deleteMutation.mutate(patient.id)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader
           title="Patients"
-          subtitle="Rechercher un dossier patient pour le supprimer (récupérable depuis la corbeille)"
+          subtitle="Liste des dossiers patients"
           action={
-            <Button variant="secondary" onClick={() => setShowTrashed((v) => !v)}>
-              {showTrashed ? 'Voir la recherche' : 'Voir la corbeille'}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant={view === 'list' ? 'primary' : 'secondary'} onClick={() => setView('list')}>
+                Liste
+              </Button>
+              <Button variant={view === 'search' ? 'primary' : 'secondary'} onClick={() => setView('search')}>
+                Rechercher
+              </Button>
+              <Button variant={view === 'trash' ? 'primary' : 'secondary'} onClick={() => setView('trash')}>
+                Corbeille
+              </Button>
+            </div>
           }
         />
         <FieldError message={error ?? undefined} />
 
-        {!showTrashed && (
+        {view === 'list' && (
+          <div className="overflow-x-auto">
+            {isListError && <p className="py-4 text-center text-sm text-red-600">Impossible de charger la liste des patients.</p>}
+            {!isListError && (
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 text-neutral-500 dark:border-neutral-800">
+                    <th className="py-2 pr-4">Nom</th>
+                    <th className="py-2 pr-4">Date de naissance</th>
+                    <th className="py-2 pr-4">Résidence</th>
+                    <th className="py-2 pr-4"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {patients?.map((patient) => (
+                    <tr key={patient.id} className="border-b border-neutral-100 dark:border-neutral-900">
+                      <td className="py-2 pr-4">{patient.full_name}</td>
+                      <td className="py-2 pr-4">{patient.date_of_birth ?? '—'}</td>
+                      <td className="py-2 pr-4">{patient.residence ?? '—'}</td>
+                      <td className="py-2 pr-4 text-right">
+                        <IconButton icon={Trash2} label="Supprimer" tone="danger" onClick={() => confirmDelete(patient)} />
+                      </td>
+                    </tr>
+                  ))}
+                  {patients?.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-4 text-center text-neutral-500">
+                        Aucun patient enregistré.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {view === 'search' && (
           <div className="space-y-3">
             <PatientAutocomplete onSelect={setSelectedPatient} />
             {selectedPatient && (
@@ -71,28 +134,16 @@ export function PatientsPage() {
                   <p className="text-sm font-medium">{selectedPatient.full_name}</p>
                   {selectedPatient.residence && <p className="text-xs text-neutral-500">{selectedPatient.residence}</p>}
                 </div>
-                <IconButton
-                  icon={Trash2}
-                  label="Supprimer"
-                  tone="danger"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        `Supprimer le dossier de ${selectedPatient.full_name} ? Il pourra être rétabli depuis la corbeille.`,
-                      )
-                    ) {
-                      deleteMutation.mutate(selectedPatient.id)
-                    }
-                  }}
-                />
+                <IconButton icon={Trash2} label="Supprimer" tone="danger" onClick={() => confirmDelete(selectedPatient)} />
               </div>
             )}
           </div>
         )}
 
-        {showTrashed && (
+        {view === 'trash' && (
           <div className="space-y-2">
-            {trashedPatients?.map((patient) => (
+            {isTrashError && <p className="py-4 text-center text-sm text-red-600">Impossible de charger la corbeille.</p>}
+            {!isTrashError && trashedPatients?.map((patient) => (
               <div key={patient.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 p-3 opacity-70 dark:border-neutral-800">
                 <div className="min-w-48">
                   <p className="text-sm font-medium">{patient.full_name}</p>
@@ -107,7 +158,7 @@ export function PatientsPage() {
                 />
               </div>
             ))}
-            {trashedPatients?.length === 0 && (
+            {!isTrashError && trashedPatients?.length === 0 && (
               <p className="py-4 text-center text-sm text-neutral-500">Corbeille vide.</p>
             )}
           </div>

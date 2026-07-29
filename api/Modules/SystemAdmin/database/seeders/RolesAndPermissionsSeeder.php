@@ -46,10 +46,26 @@ class RolesAndPermissionsSeeder extends Seeder
      * jamais accordees a reception/doctor/admin/it.
      */
     private array $superadminOnlyPermissions = [
-        'patient.delete', 'patient.restore',
         'user.delete', 'user.restore',
-        'certificate.delete', 'certificate.restore',
     ];
+
+    /**
+     * Permissions "annuler une action" (certificat, paiement, patient) —
+     * partagees par superadmin/admin/it pour pouvoir defaire une erreur de
+     * l'accueil ou du medecin. Volontairement absentes des listes reception/
+     * doctor ci-dessus : ni l'un ni l'autre ne peut annuler sa propre action
+     * seul, ca doit passer par un role de supervision.
+     */
+    private array $oversightPermissions = [
+        'certificate.view', 'patient.view',
+        'certificate.delete', 'certificate.restore', 'certificate.cancel_payment',
+        'patient.delete', 'patient.restore',
+    ];
+
+    /**
+     * Roles qui recoivent en plus $oversightPermissions.
+     */
+    private array $oversightRoles = ['admin', 'it'];
 
     public function run(): void
     {
@@ -57,6 +73,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $allPermissions = collect($this->rolePermissions)->flatten()
             ->merge($this->superadminOnlyPermissions)
+            ->merge($this->oversightPermissions)
             ->unique()->values();
 
         foreach ($allPermissions as $permission) {
@@ -68,9 +85,16 @@ class RolesAndPermissionsSeeder extends Seeder
 
             if ($roleName === 'superadmin') {
                 $role->syncPermissions(Permission::where('guard_name', self::GUARD)->get());
-            } else {
-                $role->syncPermissions($this->rolePermissions[$roleName]);
+                continue;
             }
+
+            $permissions = $this->rolePermissions[$roleName];
+
+            if (in_array($roleName, $this->oversightRoles, true)) {
+                $permissions = array_unique(array_merge($permissions, $this->oversightPermissions));
+            }
+
+            $role->syncPermissions($permissions);
         }
     }
 }

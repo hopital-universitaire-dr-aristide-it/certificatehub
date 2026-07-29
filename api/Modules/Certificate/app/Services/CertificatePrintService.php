@@ -70,8 +70,6 @@ class CertificatePrintService
             ],
             'outcome' => $data['outcome'] ?? 'sain',
             'checkedSigns' => $checkedSigns,
-            'recommandation' => $data['recommandation'] ?? null,
-            'recommandationLabel' => $fieldLabels->get('recommandation', 'Recommandations'),
         ];
     }
 }

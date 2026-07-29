@@ -15,18 +15,24 @@ export function CertificateEditPage() {
   const certificateId = Number(id)
   const queryClient = useQueryClient()
   const [values, setValues] = useState<FormValues>({})
+  const [isDirty, setIsDirty] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
 
-  const { data: certificate, isLoading: isLoadingCertificate } = useQuery({
+  const {
+    data: certificate,
+    isLoading: isLoadingCertificate,
+    isError: isCertificateError,
+    error: certificateError,
+  } = useQuery({
     queryKey: ['certificate', certificateId],
     queryFn: async () => {
-      const { data } = await api.get<Certificate>(`/certificates/${certificateId}`)
-      return data
+      const { data } = await api.get<{ data: Certificate }>(`/certificates/${certificateId}`)
+      return data.data
     },
   })
 
-  const { data: certificateTypes } = useQuery({
+  const { data: certificateTypes, isError: isCertificateTypesError, error: certificateTypesError } = useQuery({
     queryKey: ['certificate-types'],
     queryFn: async () => {
       const { data } = await api.get<{ data: CertificateType[] }>('/certificate-types')
@@ -36,16 +42,16 @@ export function CertificateEditPage() {
 
   const certificateType = certificateTypes?.find((t) => t.id === certificate?.certificate_type_id)
 
-  const { data: patient } = useQuery({
+  const { data: patient, isError: isPatientError, error: patientError } = useQuery({
     queryKey: ['patient', certificate?.patient_id],
     queryFn: async () => {
-      const { data } = await api.get<Patient>(`/patients/${certificate!.patient_id}`)
-      return data
+      const { data } = await api.get<{ data: Patient }>(`/patients/${certificate!.patient_id}`)
+      return data.data
     },
-    enabled: !!certificate,
+    enabled: !!certificate?.patient_id,
   })
 
-  const { data: fields } = useQuery({
+  const { data: fields, isError: isFieldsError, error: fieldsError } = useQuery({
     queryKey: ['form-fields', certificateType?.form_definition_id],
     queryFn: async () => {
       const { data } = await api.get<{ data: FormField[] }>(
@@ -57,28 +63,37 @@ export function CertificateEditPage() {
   })
 
   useEffect(() => {
-    if (certificate?.data) {
-      setValues(certificate.data)
+    if (certificate?.form_data) {
+      setValues(certificate.form_data)
+      setIsDirty(false)
     }
-  }, [certificate?.data])
+  }, [certificate?.form_data])
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.put(`/certificates/${certificateId}`, { data: values })
-      return data as Certificate
+      const { data } = await api.put<{ data: Certificate }>(`/certificates/${certificateId}`, { data: values })
+      return data.data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['certificate', certificateId] }),
+    onSuccess: () => {
+      setIsDirty(false)
+      queryClient.invalidateQueries({ queryKey: ['certificate', certificateId] })
+    },
     onError: (err) => setError(apiErrorMessage(err)),
   })
 
   const finalizeMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post(`/certificates/${certificateId}/finalize`)
-      return data as Certificate
+      const { data } = await api.post<{ data: Certificate }>(`/certificates/${certificateId}/finalize`)
+      return data.data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['certificate', certificateId] }),
     onError: (err) => setError(apiErrorMessage(err)),
   })
+
+  function handleFieldChange(key: string, value: unknown) {
+    setValues((prev) => ({ ...prev, [key]: value }))
+    setIsDirty(true)
+  }
 
   async function handlePreview() {
     setError(null)
@@ -92,11 +107,22 @@ export function CertificateEditPage() {
     }
   }
 
-  if (isLoadingCertificate || !certificate) {
+  const loadError = [certificateError, certificateTypesError, patientError, fieldsError]
+    .filter(Boolean)
+    .map((err) => apiErrorMessage(err))
+    .at(0)
+
+  if (isLoadingCertificate) {
     return <Card>Chargement...</Card>
   }
 
+  if (isCertificateError || !certificate) {
+    return <Card>{loadError ?? 'Impossible de charger ce certificat.'}</Card>
+  }
+
   const isFinalized = certificate.status === 'finalized'
+  const hasSavedData = !!(certificate.form_data && Object.keys(certificate.form_data).length > 0)
+  const canPreview = hasSavedData && !isBusy
 
   return (
     <div className="space-y-6">
@@ -108,6 +134,7 @@ export function CertificateEditPage() {
             <Badge tone={isFinalized ? 'blue' : 'neutral'}>{isFinalized ? 'Finalisé' : 'Brouillon'}</Badge>
           }
         />
+        {isPatientError && <FieldError message="Impossible de charger les informations du patient." />}
         {patient && (
           <dl className="grid grid-cols-3 gap-4 text-sm">
             <div>
@@ -127,28 +154,38 @@ export function CertificateEditPage() {
       </Card>
 
       <Card>
-        <CardHeader title="Formulaire" />
+        <CardHeader
+          title="Formulaire"
+          action={
+            !isFinalized && !isDirty && hasSavedData ? <Badge tone="green">Enregistré</Badge> : undefined
+          }
+        />
+        {isCertificateTypesError && <FieldError message="Impossible de charger les types de certificats." />}
+        {isFieldsError && <FieldError message="Impossible de charger le formulaire." />}
         {fields ? (
-          <DynamicForm fields={fields} values={values} onChange={(key, value) => setValues((prev) => ({ ...prev, [key]: value }))} disabled={isFinalized} />
+          <DynamicForm fields={fields} values={values} onChange={handleFieldChange} disabled={isFinalized} />
         ) : (
-          <p className="text-sm text-neutral-500">Chargement du formulaire...</p>
+          !isCertificateTypesError && !isFieldsError && <p className="text-sm text-neutral-500">Chargement du formulaire...</p>
         )}
 
         <FieldError message={error ?? undefined} />
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap items-center gap-2">
           {!isFinalized && (
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           )}
-          <Button variant="secondary" onClick={handlePreview} disabled={isBusy}>
+          <Button variant="secondary" onClick={handlePreview} disabled={!canPreview} title={!hasSavedData ? "Enregistrez d'abord le formulaire" : undefined}>
             Aperçu
           </Button>
           {!isFinalized && (
             <Button variant="secondary" onClick={() => finalizeMutation.mutate()} disabled={finalizeMutation.isPending}>
               {finalizeMutation.isPending ? 'Finalisation...' : 'Finaliser'}
             </Button>
+          )}
+          {!isFinalized && !hasSavedData && (
+            <span className="text-sm text-neutral-500">Aperçu non disponible avant le premier enregistrement.</span>
           )}
         </div>
         {isFinalized && (

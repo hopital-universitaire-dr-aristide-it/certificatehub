@@ -98,4 +98,72 @@ class ReceptionManagementTest extends TestCase
             'certificate_type_id' => 999999,
         ])->assertStatus(422);
     }
+
+    public function test_reception_can_register_a_visit_marked_paid_immediately(): void
+    {
+        $patient = Patient::factory()->create();
+        $type = CertificateType::factory()->create(['fee_amount' => 500]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->postJson('/api/v1/visits', [
+            'patient_id' => $patient->id,
+            'certificate_type_id' => $type->id,
+            'mark_paid' => true,
+        ]);
+
+        $response->assertCreated()->assertJsonPath('data.payment_status', 'paid');
+        $this->assertNotNull($response->json('data.paid_at'));
+    }
+
+    public function test_admin_can_cancel_a_payment(): void
+    {
+        $certificate = Certificate::factory()->create(['payment_status' => 'paid', 'paid_at' => now()]);
+        $admin = $this->userWithRole('admin');
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson("/api/v1/visits/{$certificate->id}/cancel-payment");
+
+        $response->assertOk()->assertJsonPath('data.payment_status', 'unpaid');
+        $this->assertNull($response->json('data.paid_at'));
+    }
+
+    public function test_reception_cannot_cancel_a_payment(): void
+    {
+        $certificate = Certificate::factory()->create(['payment_status' => 'paid']);
+        $reception = $this->userWithRole('reception');
+
+        $this->actingAs($reception, 'sanctum')
+            ->postJson("/api/v1/visits/{$certificate->id}/cancel-payment")
+            ->assertStatus(403);
+    }
+
+    public function test_visits_can_be_filtered_by_patient_name(): void
+    {
+        $match = Patient::factory()->create(['first_name' => 'Jean', 'last_name' => 'Baptiste']);
+        $other = Patient::factory()->create(['first_name' => 'Marie', 'last_name' => 'Claire']);
+        Certificate::factory()->create(['patient_id' => $match->id]);
+        Certificate::factory()->create(['patient_id' => $other->id]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits?patient_name=jean');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame($match->id, $response->json('data.0.patient_id'));
+    }
+
+    public function test_visits_can_be_filtered_by_date_range(): void
+    {
+        $reception = $this->userWithRole('reception');
+        Certificate::factory()->create(['created_at' => now()->subDays(10)]);
+        $recent = Certificate::factory()->create(['created_at' => now()]);
+
+        $response = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits?'.http_build_query([
+            'date_from' => now()->subDay()->toDateString(),
+            'date_to' => now()->addDay()->toDateString(),
+        ]));
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame($recent->id, $response->json('data.0.id'));
+    }
 }

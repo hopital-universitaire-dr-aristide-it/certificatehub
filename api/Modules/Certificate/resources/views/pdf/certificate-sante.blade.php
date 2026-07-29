@@ -85,8 +85,8 @@
 
     <p>Ce certificat lui est délivré pour servir à toutes fins utiles.</p>
 
-    @if(!empty($recommandation))
-        <p class="recommandation"><strong>{{ $recommandationLabel }} :</strong> {{ $recommandation }}</p>
+    @if($outcome === 'presente_signes')
+        <p class="recommandation"><strong>Recommandations :</strong> Consulter un spécialiste</p>
     @endif
 
     <table class="signatures">

@@ -23,6 +23,12 @@ class CertificateResource extends JsonResource
             'finalized_at' => $this->finalized_at,
             'created_at' => $this->created_at,
             'deleted_at' => $this->deleted_at,
+            // Nomme "form_data" et non "data" : Laravel desactive silencieusement
+            // l'enveloppe {"data": ...} d'une JsonResource des que son propre
+            // tableau contient deja une cle "data" (voir
+            // ResourceResponse::haveDefaultWrapperAndDataIsUnwrapped) — piege
+            // deja rencontre une fois en construisant cette resource.
+            'form_data' => $this->data,
         ];
     }
 }

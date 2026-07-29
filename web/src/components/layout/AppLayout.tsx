@@ -15,10 +15,12 @@ export function AppLayout() {
     { to: '/dashboard', label: 'Tableau de bord', show: hasPermission('report.view') },
     { to: '/reception', label: 'Accueil', show: hasPermission('certificate.create') },
     { to: '/doctor', label: 'File d\'attente médecin', show: hasPermission('certificate.finalize') },
+    { to: '/doctor/mine', label: 'Mes certificats', show: hasPermission('certificate.view_own') },
     { to: '/admin/form-hub', label: 'Formulaires', show: hasPermission('form_field.manage') },
     { to: '/admin/certificate-types', label: 'Types de certificats', show: hasPermission('certificate_type.manage') },
     { to: '/admin/users', label: 'Utilisateurs', show: hasPermission('user.view') },
     { to: '/admin/patients', label: 'Patients', show: hasPermission('patient.delete') },
+    { to: '/admin/certificates', label: 'Certificats', show: hasPermission('certificate.delete') },
     { to: '/admin/settings', label: 'Paramètres', show: hasPermission('settings.manage') },
     { to: '/it/system', label: 'Système', show: hasRole('it') },
   ]
@@ -28,7 +30,7 @@ export function AppLayout() {
       <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white/60 px-4 py-6 dark:border-neutral-800 dark:bg-neutral-900/40">
         <div className="mb-8 px-2">
           <p className="text-lg font-semibold tracking-tight">CertificateHub</p>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">HUDA</p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">Hôpital Universitaire Dr. Aristide</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
           {navItems
@@ -37,6 +39,7 @@ export function AppLayout() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                end
                 className={({ isActive }) =>
                   `rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                     isActive

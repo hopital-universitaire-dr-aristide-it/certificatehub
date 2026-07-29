@@ -76,12 +76,20 @@ class PatientManagementTest extends TestCase
             ->assertJsonPath('data.id', $patient->id);
     }
 
-    public function test_it_role_cannot_view_patients(): void
+    /**
+     * IT a recu patient.view (avec patient.delete/restore) pour pouvoir
+     * annuler une action de l'accueil/du medecin en oversight — voir
+     * RolesAndPermissionsSeeder::$oversightPermissions. Ce n'est plus
+     * "aucun acces aux donnees patient" comme a l'origine du projet.
+     */
+    public function test_it_role_can_view_patients_for_oversight(): void
     {
         $it = $this->userWithRole('it');
         $patient = Patient::factory()->create();
 
-        $this->actingAs($it, 'sanctum')->getJson("/api/v1/patients/{$patient->id}")->assertStatus(403);
+        $this->actingAs($it, 'sanctum')->getJson("/api/v1/patients/{$patient->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $patient->id);
     }
 
     public function test_reception_can_update_patient(): void

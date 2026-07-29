@@ -74,6 +74,34 @@ describe('ReceptionPage', () => {
     expect(screen.getByText('Sélectionnez un patient et un type de certificat.')).toBeInTheDocument()
   })
 
+  it('registers a visit with mark_paid when the checkbox is ticked', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { data: { ...visit, payment_status: 'paid' } } })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Certificat de santé — 500 G')).toBeInTheDocument())
+
+    // Simule la selection d'un patient sans passer par l'autocomplete reel.
+    await userEvent.click(screen.getByText('Nouveau patient'))
+    await userEvent.type(screen.getByLabelText('Prénom'), 'Jean')
+    await userEvent.type(screen.getByLabelText('Nom'), 'Baptiste')
+
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { patient: { id: 1, first_name: 'Jean', last_name: 'Baptiste', full_name: 'Jean Baptiste' }, potential_duplicates: [] } })
+    await userEvent.click(screen.getByText('Créer le patient'))
+
+    await waitFor(() => expect(screen.getByText(/Patient sélectionné/)).toBeInTheDocument())
+    await userEvent.selectOptions(screen.getByLabelText('Type de certificat'), '1')
+    await userEvent.click(screen.getByLabelText('Paiement reçu maintenant'))
+    await userEvent.click(screen.getByText('Enregistrer la visite'))
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/visits', {
+        patient_id: 1,
+        certificate_type_id: 1,
+        mark_paid: true,
+      }),
+    )
+  })
+
   it('switches to the new-patient form', async () => {
     renderPage()
     await userEvent.click(screen.getByText('Nouveau patient'))

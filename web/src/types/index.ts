@@ -56,7 +56,7 @@ export interface Certificate {
   finalized_at: string | null
   created_at: string
   deleted_at: string | null
-  data?: Record<string, unknown>
+  form_data?: Record<string, unknown>
 }
 
 export interface CertificateType {

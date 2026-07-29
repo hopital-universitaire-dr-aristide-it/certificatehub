@@ -10,6 +10,20 @@ vi.mock('../../lib/api', () => ({ api: { get: vi.fn(), post: vi.fn(), delete: vi
 
 const searchResult: PatientSummary = { id: 1, full_name: 'Jean Baptiste', date_of_birth: '1990-01-01', residence: 'Port-au-Prince' }
 
+const listedPatient: Patient = {
+  id: 3,
+  first_name: 'Bertin',
+  last_name: 'Louissaint',
+  full_name: 'Bertin Louissaint',
+  sex: 'M',
+  date_of_birth: '1985-05-05',
+  age: null,
+  residence: 'Tabarre',
+  created_by: 1,
+  created_at: new Date().toISOString(),
+  deleted_at: null,
+}
+
 const trashedPatient: Patient = {
   id: 2,
   first_name: 'Marie',
@@ -36,7 +50,16 @@ function renderPage() {
 describe('PatientsPage', () => {
   beforeEach(() => {
     vi.mocked(api.get).mockReset()
+    vi.mocked(api.post).mockReset()
     vi.mocked(api.delete).mockReset()
+  })
+
+  it('shows the full patient list by default', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [listedPatient] } })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Bertin Louissaint')).toBeInTheDocument())
+    expect(api.get).toHaveBeenCalledWith('/patients')
   })
 
   it('searches, selects and soft-deletes a patient after confirming', async () => {
@@ -45,6 +68,7 @@ describe('PatientsPage', () => {
     vi.mocked(api.delete).mockResolvedValue({ data: {} })
 
     renderPage()
+    await userEvent.click(screen.getByText('Rechercher'))
     await userEvent.type(screen.getByPlaceholderText(/rechercher un patient/i), 'Je')
     await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
     await userEvent.click(screen.getByText('Jean Baptiste'))
@@ -56,11 +80,14 @@ describe('PatientsPage', () => {
   })
 
   it('lists trashed patients and lets a superadmin restore one', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: [trashedPatient] } })
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/patients/trashed') return Promise.resolve({ data: { data: [trashedPatient] } })
+      return Promise.resolve({ data: { data: [] } })
+    })
     vi.mocked(api.post).mockResolvedValue({ data: {} })
 
     renderPage()
-    await userEvent.click(screen.getByRole('button', { name: 'Voir la corbeille' }))
+    await userEvent.click(screen.getByText('Corbeille'))
 
     await waitFor(() => expect(screen.getByText('Marie Claire')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: 'Rétablir' }))

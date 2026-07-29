@@ -8,7 +8,7 @@ import type { User } from '../../types'
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
-  return { ...actual, api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }
+  return { ...actual, api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }
 })
 
 const users: User[] = [
@@ -30,6 +30,7 @@ describe('UsersPage', () => {
     localStorage.clear()
     vi.mocked(api.get).mockReset()
     vi.mocked(api.post).mockReset()
+    vi.mocked(api.put).mockReset()
     vi.mocked(api.delete).mockReset()
     vi.mocked(api.get).mockResolvedValue({ data: { data: users } })
   })
@@ -73,6 +74,26 @@ describe('UsersPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
 
     expect(api.delete).toHaveBeenCalledWith('/users/1')
+  })
+
+  it('changes a user password', async () => {
+    vi.mocked(api.put).mockResolvedValue({ data: {} })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+    await userEvent.type(screen.getByPlaceholderText('Nouveau mot de passe'), 'nouveaumdp123')
+    await userEvent.click(screen.getByRole('button', { name: 'Changer le mot de passe' }))
+
+    expect(api.put).toHaveBeenCalledWith('/users/1', { password: 'nouveaumdp123' })
+  })
+
+  it('keeps the password button disabled for passwords under 8 characters', async () => {
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+    await userEvent.type(screen.getByPlaceholderText('Nouveau mot de passe'), 'short')
+
+    expect(screen.getByRole('button', { name: 'Changer le mot de passe' })).toBeDisabled()
   })
 
   it('does not show the delete button to a non-superadmin admin', async () => {

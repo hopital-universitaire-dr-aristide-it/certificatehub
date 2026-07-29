@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Banknote, Printer, Receipt, Trash2 } from 'lucide-react'
+import { Banknote, Printer, Receipt } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { openPdfInNewTab } from '../../lib/pdf'
@@ -19,14 +19,14 @@ function money(amount: number) {
 
 export function ReceptionPage() {
   const queryClient = useQueryClient()
-  const { hasPermission, hasRole } = useAuth()
+  const { hasPermission } = useAuth()
   const [mode, setMode] = useState<'search' | 'create'>('search')
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | Patient | null>(null)
   const [certificateTypeId, setCertificateTypeId] = useState<string>('')
+  const [markPaidAtRegistration, setMarkPaidAtRegistration] = useState(false)
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
   const canPrint = hasPermission('certificate.print')
-  const isSuperadmin = hasRole('superadmin')
 
   const { data: certificateTypes } = useQuery({
     queryKey: ['certificate-types'],
@@ -47,15 +47,17 @@ export function ReceptionPage() {
 
   const registerVisit = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post('/visits', {
+      const { data } = await api.post<{ data: Certificate }>('/visits', {
         patient_id: selectedPatient!.id,
         certificate_type_id: Number(certificateTypeId),
+        mark_paid: markPaidAtRegistration,
       })
-      return data as Certificate
+      return data.data
     },
     onSuccess: () => {
       setSelectedPatient(null)
       setCertificateTypeId('')
+      setMarkPaidAtRegistration(false)
       queryClient.invalidateQueries({ queryKey: ['visits'] })
     },
     onError: (err) => setRegisterError(apiErrorMessage(err)),
@@ -63,18 +65,10 @@ export function ReceptionPage() {
 
   const markPaid = useMutation({
     mutationFn: async (certificateId: number) => {
-      const { data } = await api.post(`/visits/${certificateId}/mark-paid`)
-      return data as Certificate
+      const { data } = await api.post<{ data: Certificate }>(`/visits/${certificateId}/mark-paid`)
+      return data.data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['visits'] }),
-  })
-
-  const deleteVisit = useMutation({
-    mutationFn: async (certificateId: number) => {
-      await api.delete(`/certificates/${certificateId}`)
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['visits'] }),
-    onError: (err) => setPrintError(apiErrorMessage(err)),
   })
 
   function handleRegister() {
@@ -141,6 +135,16 @@ export function ReceptionPage() {
           </Select>
         </div>
 
+        <label className="mt-4 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+            checked={markPaidAtRegistration}
+            onChange={(e) => setMarkPaidAtRegistration(e.target.checked)}
+          />
+          Paiement reçu maintenant
+        </label>
+
         <FieldError message={registerError ?? undefined} />
 
         <Button className="mt-4" onClick={handleRegister} disabled={registerVisit.isPending}>
@@ -193,18 +197,6 @@ export function ReceptionPage() {
                       )}
                       {visit.status === 'finalized' && canPrint && (
                         <IconButton icon={Printer} label="Imprimer" onClick={() => handlePrint(visit.id)} />
-                      )}
-                      {isSuperadmin && (
-                        <IconButton
-                          icon={Trash2}
-                          label="Supprimer"
-                          tone="danger"
-                          onClick={() => {
-                            if (window.confirm('Supprimer cette visite/ce certificat ? Il pourra être rétabli depuis la corbeille.')) {
-                              deleteVisit.mutate(visit.id)
-                            }
-                          }}
-                        />
                       )}
                     </div>
                   </td>

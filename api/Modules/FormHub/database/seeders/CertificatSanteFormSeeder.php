@@ -92,5 +92,11 @@ class CertificatSanteFormSeeder extends Seeder
                 ]
             );
         }
+
+        // La recommandation est desormais un texte fige imprime automatiquement
+        // (voir CertificatePrintService/certificate-sante.blade.php), plus une
+        // saisie libre du medecin — desactive le champ meme s'il a deja ete
+        // seede actif lors d'un deploiement precedent.
+        FormField::where('form_id', $form->id)->where('field_key', 'recommandation')->update(['is_active' => false]);
     }
 }

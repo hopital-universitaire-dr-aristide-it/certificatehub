@@ -16,6 +16,7 @@ class RegisterVisitRequest extends FormRequest
         return [
             'patient_id' => ['required', 'integer', 'exists:patients,id'],
             'certificate_type_id' => ['required', 'integer', 'exists:certificate_types,id'],
+            'mark_paid' => ['sometimes', 'boolean'],
         ];
     }
 }

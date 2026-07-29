@@ -58,14 +58,29 @@ class CertificateServiceTest extends TestCase
             'sign_contagieux' => '1',
             'sign_chronique' => 0,
             'not_a_real_field' => 'ignored',
-            'recommandation' => 'Repos',
         ], $doctor);
 
         $this->assertTrue($updated->data['sign_contagieux']);
         $this->assertFalse($updated->data['sign_chronique']);
         $this->assertArrayNotHasKey('not_a_real_field', $updated->data);
-        $this->assertSame('Repos', $updated->data['recommandation']);
         $this->assertSame($doctor->id, $updated->doctor_id);
+    }
+
+    /**
+     * "recommandation" est desactive par le seeder (texte fige imprime
+     * automatiquement, plus une saisie libre — voir CertificatSanteFormSeeder
+     * et certificate-sante.blade.php) : toute valeur soumise doit etre
+     * ignoree exactement comme n'importe quel autre champ inactif.
+     */
+    public function test_fill_data_ignores_recommandation_since_it_is_deactivated_by_default(): void
+    {
+        $type = $this->santeType();
+        $certificate = Certificate::factory()->create(['certificate_type_id' => $type->id]);
+        $doctor = User::factory()->create();
+
+        $updated = (new CertificateService)->fillData($certificate, ['recommandation' => 'Repos'], $doctor);
+
+        $this->assertArrayNotHasKey('recommandation', $updated->data ?? []);
     }
 
     public function test_fill_data_ignores_inactive_fields(): void

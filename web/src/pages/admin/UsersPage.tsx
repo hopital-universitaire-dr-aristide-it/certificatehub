@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Power, Trash2, RotateCcw } from 'lucide-react'
+import { KeyRound, Power, Trash2, RotateCcw } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
@@ -81,6 +81,13 @@ export function UsersPage() {
     onError: (err) => setError(apiErrorMessage(err)),
   })
 
+  const changePasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: number; password: string }) => {
+      await api.put(`/users/${userId}`, { password })
+    },
+    onError: (err) => setError(apiErrorMessage(err)),
+  })
+
   return (
     <div className="space-y-6">
       <Card>
@@ -98,42 +105,19 @@ export function UsersPage() {
         <div className="space-y-2">
           {!showTrashed &&
             users?.map((user) => (
-              <div key={user.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
-                <div className="min-w-48">
-                  <p className="text-sm font-medium">{user.name}</p>
-                  <p className="text-xs text-neutral-500">{user.email}</p>
-                </div>
-                <Badge tone={user.is_active ? 'green' : 'red'}>{user.is_active ? 'Actif' : 'Désactivé'}</Badge>
-                <Select
-                  value={user.roles[0] ?? ''}
-                  onChange={(e) => assignRoleMutation.mutate({ userId: user.id, role: e.target.value })}
-                  className="w-40"
-                >
-                  {ROLES.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </Select>
-                <IconButton
-                  icon={Power}
-                  label={user.is_active ? 'Désactiver' : 'Réactiver'}
-                  tone={user.is_active ? 'danger' : 'primary'}
-                  onClick={() => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.is_active })}
-                />
-                {isSuperadmin && (
-                  <IconButton
-                    icon={Trash2}
-                    label="Supprimer"
-                    tone="danger"
-                    onClick={() => {
-                      if (window.confirm(`Supprimer le compte de ${user.name} ? Il pourra être rétabli depuis la corbeille.`)) {
-                        deleteMutation.mutate(user.id)
-                      }
-                    }}
-                  />
-                )}
-              </div>
+              <UserRow
+                key={user.id}
+                user={user}
+                isSuperadmin={isSuperadmin}
+                onAssignRole={(role) => assignRoleMutation.mutate({ userId: user.id, role })}
+                onToggleActive={() => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.is_active })}
+                onChangePassword={(password) => changePasswordMutation.mutate({ userId: user.id, password })}
+                onDelete={() => {
+                  if (window.confirm(`Supprimer le compte de ${user.name} ? Il pourra être rétabli depuis la corbeille.`)) {
+                    deleteMutation.mutate(user.id)
+                  }
+                }}
+              />
             ))}
 
           {showTrashed &&
@@ -165,6 +149,68 @@ export function UsersPage() {
           <NewUserForm onSubmit={(payload) => createMutation.mutate(payload)} />
         </Card>
       )}
+    </div>
+  )
+}
+
+function UserRow({
+  user,
+  isSuperadmin,
+  onAssignRole,
+  onToggleActive,
+  onChangePassword,
+  onDelete,
+}: {
+  user: User
+  isSuperadmin: boolean
+  onAssignRole: (role: string) => void
+  onToggleActive: () => void
+  onChangePassword: (password: string) => void
+  onDelete: () => void
+}) {
+  const [newPassword, setNewPassword] = useState('')
+
+  function submitPassword() {
+    if (newPassword.length < 8) return
+    onChangePassword(newPassword)
+    setNewPassword('')
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
+      <div className="min-w-48">
+        <p className="text-sm font-medium">{user.name}</p>
+        <p className="text-xs text-neutral-500">{user.email}</p>
+      </div>
+      <Badge tone={user.is_active ? 'green' : 'red'}>{user.is_active ? 'Actif' : 'Désactivé'}</Badge>
+      <Select value={user.roles[0] ?? ''} onChange={(e) => onAssignRole(e.target.value)} className="w-40">
+        {ROLES.map((role) => (
+          <option key={role} value={role}>
+            {role}
+          </option>
+        ))}
+      </Select>
+      <Input
+        type="password"
+        placeholder="Nouveau mot de passe"
+        className="w-44"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+      />
+      <IconButton
+        icon={KeyRound}
+        label="Changer le mot de passe"
+        tone="primary"
+        disabled={newPassword.length < 8}
+        onClick={submitPassword}
+      />
+      <IconButton
+        icon={Power}
+        label={user.is_active ? 'Désactiver' : 'Réactiver'}
+        tone={user.is_active ? 'danger' : 'primary'}
+        onClick={onToggleActive}
+      />
+      {isSuperadmin && <IconButton icon={Trash2} label="Supprimer" tone="danger" onClick={onDelete} />}
     </div>
   )
 }

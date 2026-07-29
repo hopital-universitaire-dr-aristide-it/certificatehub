@@ -14,10 +14,12 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         Route::put('certificate-types/{certificateType}', [CertificateTypeController::class, 'update']);
     });
 
-    // Doit etre declaree avant certificates/{certificate} sinon "trashed" est
-    // interprete comme un {certificate} et le binding de route echoue.
+    // Doivent etre declarees avant certificates/{certificate} sinon "trashed"/
+    // "mine" sont interpretes comme un {certificate} et le binding de route echoue.
     Route::get('certificates/trashed', [CertificateController::class, 'trashed'])
         ->middleware('can:certificate.restore');
+    Route::get('certificates/mine', [CertificateController::class, 'mine'])
+        ->middleware('can:certificate.view_own');
 
     // Cote medecin : prise en charge, remplissage et finalisation.
     Route::middleware('can:certificate.finalize')->group(function () {

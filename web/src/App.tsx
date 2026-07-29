@@ -5,11 +5,13 @@ import { LoginPage } from './pages/LoginPage'
 import { HomeRedirect } from './pages/HomeRedirect'
 import { ReceptionPage } from './pages/reception/ReceptionPage'
 import { DoctorQueuePage } from './pages/doctor/DoctorQueuePage'
+import { MyCertificatesPage } from './pages/doctor/MyCertificatesPage'
 import { CertificateEditPage } from './pages/doctor/CertificateEditPage'
 import { FormHubPage } from './pages/admin/FormHubPage'
 import { CertificateTypesPage } from './pages/admin/CertificateTypesPage'
 import { UsersPage } from './pages/admin/UsersPage'
 import { PatientsPage } from './pages/admin/PatientsPage'
+import { CertificatesPage } from './pages/admin/CertificatesPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
 import { SystemHealthPage } from './pages/it/SystemHealthPage'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
@@ -37,6 +39,10 @@ function App() {
               <Route path="doctor/certificates/:id" element={<CertificateEditPage />} />
             </Route>
 
+            <Route element={<ProtectedRoute permission="certificate.view_own" />}>
+              <Route path="doctor/mine" element={<MyCertificatesPage />} />
+            </Route>
+
             <Route element={<ProtectedRoute permission="form_field.manage" />}>
               <Route path="admin/form-hub" element={<FormHubPage />} />
             </Route>
@@ -51,6 +57,10 @@ function App() {
 
             <Route element={<ProtectedRoute permission="patient.delete" />}>
               <Route path="admin/patients" element={<PatientsPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute permission="certificate.delete" />}>
+              <Route path="admin/certificates" element={<CertificatesPage />} />
             </Route>
 
             <Route element={<ProtectedRoute permission="settings.manage" />}>

@@ -129,4 +129,19 @@ class CertificateController extends Controller
             Certificate::onlyTrashed()->with('patient')->orderByDesc('deleted_at')->paginate(20)
         );
     }
+
+    /**
+     * Historique des certificats realises par le medecin connecte (pas ceux
+     * des autres medecins — voir certificate.view_own, distinct de
+     * certificate.view qui donne acces a tous les certificats).
+     */
+    public function mine(Request $request)
+    {
+        return CertificateResource::collection(
+            Certificate::with('patient')
+                ->where('doctor_id', $request->user()->id)
+                ->orderByDesc('created_at')
+                ->paginate(20)
+        );
+    }
 }

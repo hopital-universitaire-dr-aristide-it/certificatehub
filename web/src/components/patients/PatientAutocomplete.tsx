@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/api'
+import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { Input } from '../ui/Field'
 import { Spinner } from '../ui/Spinner'
 import type { PatientSummary } from '../../types'
@@ -8,16 +9,6 @@ import type { PatientSummary } from '../../types'
 interface PatientAutocompleteProps {
   onSelect: (patient: PatientSummary) => void
   placeholder?: string
-}
-
-/** Debounce simple : ne relance la recherche qu'apres 300ms d'inactivite de saisie. */
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs)
-    return () => clearTimeout(timer)
-  }, [value, delayMs])
-  return debounced
 }
 
 export function PatientAutocomplete({ onSelect, placeholder }: PatientAutocompleteProps) {
