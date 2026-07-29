@@ -89,8 +89,27 @@ class CertificateService
         });
     }
 
+    /**
+     * Annule le certificat (corbeille, restaurable). Si le patient avait deja
+     * paye, un nouveau certificat brouillon est cree immediatement pour le
+     * meme patient/type afin qu'il redevienne visible dans la file d'attente
+     * des medecins pour une nouvelle tentative, sans repasser par l'accueil
+     * pour payer une seconde fois.
+     */
     public function delete(Certificate $certificate): void
     {
+        if ($certificate->payment_status === PaymentStatus::Paid) {
+            Certificate::create([
+                'patient_id' => $certificate->patient_id,
+                'certificate_type_id' => $certificate->certificate_type_id,
+                'created_by' => $certificate->created_by,
+                'fee_amount' => $certificate->fee_amount,
+                'status' => CertificateStatus::Draft,
+                'payment_status' => PaymentStatus::Paid,
+                'paid_at' => now(),
+            ]);
+        }
+
         $certificate->delete();
     }
 

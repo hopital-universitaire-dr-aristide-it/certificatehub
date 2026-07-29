@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ReceptionPage } from './ReceptionPage'
 import { renderWithProviders, seedUser, makeUser } from '../../test/renderWithProviders'
@@ -120,6 +120,45 @@ describe('ReceptionPage', () => {
 
     await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
     expect(screen.getByTitle('Document PDF')).toHaveAttribute('src', 'blob:mock-url')
+  })
+
+  it('prints a multi-selected batch of visits sequentially in the inline modal', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/visits') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { ...visit, id: 10, status: 'finalized', payment_status: 'paid' },
+              { ...visit, id: 11, status: 'finalized', payment_status: 'paid' },
+            ],
+          },
+        })
+      }
+      if (url === '/certificates/10/print' || url === '/certificates/11/print') {
+        return Promise.resolve({ data: new Blob(['%PDF-1.4']) })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage(['certificate.create', 'certificate.mark_paid', 'certificate.print'])
+
+    const table = await screen.findByRole('table')
+    await waitFor(() => expect(within(table).getAllByRole('checkbox').length).toBe(2))
+    await userEvent.click(within(table).getAllByRole('checkbox')[0])
+    await userEvent.click(within(table).getAllByRole('checkbox')[1])
+
+    await userEvent.click(screen.getByText('Imprimer la sélection (2)'))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/certificates/10/print', { responseType: 'blob' }))
+    await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByLabelText('Fermer'))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/certificates/11/print', { responseType: 'blob' }))
+    await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByLabelText('Fermer'))
+    await waitFor(() => expect(screen.queryByTitle('Document PDF')).not.toBeInTheDocument())
   })
 
   it('hides the print button for users without certificate.print', async () => {

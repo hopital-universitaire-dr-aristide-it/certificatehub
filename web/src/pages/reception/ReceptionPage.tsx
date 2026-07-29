@@ -27,6 +27,9 @@ export function ReceptionPage() {
   const [markPaidAtRegistration, setMarkPaidAtRegistration] = useState(false)
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [printQueue, setPrintQueue] = useState<number[]>([])
+  const [isPrintingSelection, setIsPrintingSelection] = useState(false)
   const canPrint = hasPermission('certificate.print')
   const pdfPreview = usePdfPreview()
 
@@ -100,6 +103,50 @@ export function ReceptionPage() {
     }
   }
 
+  function toggleSelected(certificateId: number) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(certificateId)) {
+        next.delete(certificateId)
+      } else {
+        next.add(certificateId)
+      }
+      return next
+    })
+  }
+
+  async function printSelection() {
+    setPrintError(null)
+    const ids = [...selected]
+    if (ids.length === 0) return
+    setIsPrintingSelection(true)
+    try {
+      setPrintQueue(ids.slice(1))
+      await pdfPreview.open(`/certificates/${ids[0]}/print`)
+      setSelected(new Set())
+    } catch (err) {
+      setPrintError(apiErrorMessage(err))
+      setIsPrintingSelection(false)
+    }
+  }
+
+  async function handlePreviewClose() {
+    if (printQueue.length > 0) {
+      const [next, ...rest] = printQueue
+      setPrintQueue(rest)
+      try {
+        await pdfPreview.open(`/certificates/${next}/print`)
+      } catch (err) {
+        setPrintError(apiErrorMessage(err))
+        setIsPrintingSelection(false)
+        pdfPreview.close()
+      }
+      return
+    }
+    setIsPrintingSelection(false)
+    pdfPreview.close()
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -157,10 +204,18 @@ export function ReceptionPage() {
       <Card>
         <CardHeader title="Visites du jour" subtitle="Marquer le paiement pour libérer l'accès au médecin" />
         <FieldError message={printError ?? undefined} />
+        {canPrint && (
+          <div className="mb-3">
+            <Button variant="secondary" disabled={selected.size === 0 || isPrintingSelection} onClick={printSelection}>
+              {isPrintingSelection ? 'Impression...' : `Imprimer la sélection (${selected.size})`}
+            </Button>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-neutral-200 text-neutral-500 dark:border-neutral-800">
+                <th className="py-2 pr-4"></th>
                 <th className="py-2 pr-4">Patient</th>
                 <th className="py-2 pr-4">Montant</th>
                 <th className="py-2 pr-4">Paiement</th>
@@ -171,6 +226,16 @@ export function ReceptionPage() {
             <tbody>
               {visits?.map((visit) => (
                 <tr key={visit.id} className="border-b border-neutral-100 dark:border-neutral-900">
+                  <td className="py-2 pr-4">
+                    {visit.status === 'finalized' && canPrint && (
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                        checked={selected.has(visit.id)}
+                        onChange={() => toggleSelected(visit.id)}
+                      />
+                    )}
+                  </td>
                   <td className="py-2 pr-4">{visit.patient_name}</td>
                   <td className="py-2 pr-4">{money(visit.fee_amount)}</td>
                   <td className="py-2 pr-4">
@@ -206,7 +271,7 @@ export function ReceptionPage() {
               ))}
               {visits?.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-4 text-center text-neutral-500">
+                  <td colSpan={6} className="py-4 text-center text-neutral-500">
                     Aucune visite enregistrée.
                   </td>
                 </tr>
@@ -215,7 +280,7 @@ export function ReceptionPage() {
           </table>
         </div>
       </Card>
-      {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={pdfPreview.close} />}
+      {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={handlePreviewClose} />}
     </div>
   )
 }

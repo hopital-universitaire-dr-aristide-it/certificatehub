@@ -228,6 +228,38 @@ class CertificateWorkflowTest extends TestCase
         return [['admin'], ['it'], ['superadmin']];
     }
 
+    public function test_cancelling_a_paid_certificate_requeues_the_patient_for_a_new_one(): void
+    {
+        $certificate = Certificate::factory()->create(['payment_status' => PaymentStatus::Paid]);
+        $admin = $this->userWithRole('admin');
+
+        $this->actingAs($admin, 'sanctum')->deleteJson("/api/v1/certificates/{$certificate->id}")->assertNoContent();
+
+        $this->assertDatabaseHas('certificates', [
+            'patient_id' => $certificate->patient_id,
+            'certificate_type_id' => $certificate->certificate_type_id,
+            'status' => 'draft',
+            'payment_status' => 'paid',
+            'deleted_at' => null,
+        ]);
+
+        $doctor = $this->userWithRole('doctor');
+        $queue = $this->actingAs($doctor, 'sanctum')->getJson('/api/v1/certificates/queue');
+        $queue->assertOk();
+        $this->assertCount(1, $queue->json('data'));
+        $this->assertSame($certificate->patient_id, $queue->json('data.0.patient_id'));
+    }
+
+    public function test_cancelling_an_unpaid_certificate_does_not_requeue(): void
+    {
+        $certificate = Certificate::factory()->create(['payment_status' => PaymentStatus::Unpaid]);
+        $admin = $this->userWithRole('admin');
+
+        $this->actingAs($admin, 'sanctum')->deleteJson("/api/v1/certificates/{$certificate->id}")->assertNoContent();
+
+        $this->assertDatabaseCount('certificates', 1);
+    }
+
     public function test_reception_and_doctor_cannot_cancel_a_certificate(): void
     {
         $certificate = Certificate::factory()->create();
