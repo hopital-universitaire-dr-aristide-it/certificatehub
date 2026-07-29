@@ -85,6 +85,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
             if ($roleName === 'superadmin') {
                 $role->syncPermissions(Permission::where('guard_name', self::GUARD)->get());
+
                 continue;
             }
 
