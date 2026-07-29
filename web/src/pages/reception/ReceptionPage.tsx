@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { Banknote, Printer, Receipt } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
-import { openPdfInNewTab } from '../../lib/pdf'
+import { usePdfPreview } from '../../lib/usePdfPreview'
 import { useAuth } from '../../lib/auth'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
 import { Select, Label, FieldError } from '../../components/ui/Field'
+import { PdfModal } from '../../components/ui/PdfModal'
 import { PatientAutocomplete } from '../../components/patients/PatientAutocomplete'
 import { NewPatientForm } from '../../components/patients/NewPatientForm'
 import type { Certificate, CertificateType, Patient, PatientSummary, PaginatedResponse } from '../../types'
@@ -27,6 +28,7 @@ export function ReceptionPage() {
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
   const canPrint = hasPermission('certificate.print')
+  const pdfPreview = usePdfPreview()
 
   const { data: certificateTypes } = useQuery({
     queryKey: ['certificate-types'],
@@ -83,7 +85,7 @@ export function ReceptionPage() {
   async function handlePrint(certificateId: number) {
     setPrintError(null)
     try {
-      await openPdfInNewTab(`/certificates/${certificateId}/print`)
+      await pdfPreview.open(`/certificates/${certificateId}/print`)
     } catch (err) {
       setPrintError(apiErrorMessage(err))
     }
@@ -92,7 +94,7 @@ export function ReceptionPage() {
   async function handleInvoice(certificateId: number) {
     setPrintError(null)
     try {
-      await openPdfInNewTab(`/certificates/${certificateId}/invoice`)
+      await pdfPreview.open(`/certificates/${certificateId}/invoice`)
     } catch (err) {
       setPrintError(apiErrorMessage(err))
     }
@@ -213,6 +215,7 @@ export function ReceptionPage() {
           </table>
         </div>
       </Card>
+      {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={pdfPreview.close} />}
     </div>
   )
 }

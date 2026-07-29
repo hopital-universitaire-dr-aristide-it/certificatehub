@@ -4,15 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { CertificatesPage } from './CertificatesPage'
 import { renderWithProviders, seedUser, makeUser } from '../../test/renderWithProviders'
 import { api } from '../../lib/api'
-import { openPdfInNewTab } from '../../lib/pdf'
 import type { Certificate } from '../../types'
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
   return { ...actual, api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }
 })
-
-vi.mock('../../lib/pdf', () => ({ openPdfInNewTab: vi.fn().mockResolvedValue(undefined) }))
 
 const oversightPermissions = [
   'certificate.view',
@@ -51,7 +48,8 @@ describe('CertificatesPage', () => {
     vi.mocked(api.get).mockReset()
     vi.mocked(api.post).mockReset()
     vi.mocked(api.delete).mockReset()
-    vi.mocked(openPdfInNewTab).mockClear()
+    URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+    URL.revokeObjectURL = vi.fn()
   })
 
   it('lists certificates and requests name/date filters', async () => {
@@ -93,8 +91,14 @@ describe('CertificatesPage', () => {
     expect(api.post).toHaveBeenCalledWith('/visits/1/cancel-payment')
   })
 
-  it('prints a multi-selected batch sequentially', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: [cert({ id: 1 }), cert({ id: 2 })] } })
+  it('prints a multi-selected batch sequentially in the inline modal', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/visits') return Promise.resolve({ data: { data: [cert({ id: 1 }), cert({ id: 2 })] } })
+      if (url === '/certificates/1/print' || url === '/certificates/2/print') {
+        return Promise.resolve({ data: new Blob(['%PDF-1.4']) })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
     renderPage()
 
     await waitFor(() => expect(screen.getAllByRole('checkbox').length).toBe(2))
@@ -103,10 +107,31 @@ describe('CertificatesPage', () => {
 
     await userEvent.click(screen.getByText('Imprimer la sélection (2)'))
 
-    await waitFor(() => {
-      expect(openPdfInNewTab).toHaveBeenCalledWith('/certificates/1/print')
-      expect(openPdfInNewTab).toHaveBeenCalledWith('/certificates/2/print')
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/certificates/1/print', { responseType: 'blob' }))
+    await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByLabelText('Fermer'))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/certificates/2/print', { responseType: 'blob' }))
+    await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByLabelText('Fermer'))
+    await waitFor(() => expect(screen.queryByTitle('Document PDF')).not.toBeInTheDocument())
+  })
+
+  it('prints a single finalized certificate in the inline modal', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/visits') return Promise.resolve({ data: { data: [cert()] } })
+      if (url === '/certificates/1/print') return Promise.resolve({ data: new Blob(['%PDF-1.4']) })
+      return Promise.resolve({ data: { data: [] } })
     })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Imprimer' }))
+
+    await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
+    expect(screen.getByTitle('Document PDF')).toHaveAttribute('src', 'blob:mock-url')
   })
 
   it('shows the trash view with restore action', async () => {

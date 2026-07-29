@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
-import { openPdfInNewTab } from '../../lib/pdf'
+import { usePdfPreview } from '../../lib/usePdfPreview'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { FieldError } from '../../components/ui/Field'
+import { PdfModal } from '../../components/ui/PdfModal'
 import { DynamicForm, type FormValues } from '../../components/forms/DynamicForm'
 import type { Certificate, CertificateType, FormField, Patient } from '../../types'
 
@@ -18,6 +19,7 @@ export function CertificateEditPage() {
   const [isDirty, setIsDirty] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
+  const pdfPreview = usePdfPreview()
 
   const {
     data: certificate,
@@ -99,7 +101,7 @@ export function CertificateEditPage() {
     setError(null)
     setIsBusy(true)
     try {
-      await openPdfInNewTab(`/certificates/${certificateId}/preview`)
+      await pdfPreview.open(`/certificates/${certificateId}/preview`)
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
@@ -194,6 +196,7 @@ export function CertificateEditPage() {
           </p>
         )}
       </Card>
+      {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={pdfPreview.close} />}
     </div>
   )
 }

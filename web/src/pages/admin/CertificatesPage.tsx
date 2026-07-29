@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Ban, Printer, Receipt, RotateCcw, Undo2 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
-import { openPdfInNewTab } from '../../lib/pdf'
+import { usePdfPreview } from '../../lib/usePdfPreview'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { useAuth } from '../../lib/auth'
 import { Card, CardHeader } from '../../components/ui/Card'
@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
 import { Input, Label, FieldError } from '../../components/ui/Field'
+import { PdfModal } from '../../components/ui/PdfModal'
 import type { Certificate, PaginatedResponse } from '../../types'
 
 type View = 'active' | 'trash'
@@ -33,6 +34,7 @@ export function CertificatesPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [isPrintingSelection, setIsPrintingSelection] = useState(false)
+  const pdfPreview = usePdfPreview()
 
   const debouncedName = useDebouncedValue(patientName, 300)
 
@@ -101,19 +103,38 @@ export function CertificatesPage() {
     })
   }
 
+  const [printQueue, setPrintQueue] = useState<number[]>([])
+
   async function printSelection() {
     setError(null)
+    const ids = [...selected]
+    if (ids.length === 0) return
     setIsPrintingSelection(true)
     try {
-      for (const certificateId of selected) {
-        await openPdfInNewTab(`/certificates/${certificateId}/print`)
-      }
+      setPrintQueue(ids.slice(1))
+      await pdfPreview.open(`/certificates/${ids[0]}/print`)
       setSelected(new Set())
     } catch (err) {
       setError(apiErrorMessage(err))
-    } finally {
       setIsPrintingSelection(false)
     }
+  }
+
+  async function handlePreviewClose() {
+    if (printQueue.length > 0) {
+      const [next, ...rest] = printQueue
+      setPrintQueue(rest)
+      try {
+        await pdfPreview.open(`/certificates/${next}/print`)
+      } catch (err) {
+        setError(apiErrorMessage(err))
+        setIsPrintingSelection(false)
+        pdfPreview.close()
+      }
+      return
+    }
+    setIsPrintingSelection(false)
+    pdfPreview.close()
   }
 
   const printableSelectedCount = [...selected].length
@@ -209,10 +230,18 @@ export function CertificatesPage() {
                           <td className="py-2 pr-4 text-right">
                             <div className="flex justify-end gap-1">
                               {cert.payment_status === 'paid' && canPrint && (
-                                <IconButton icon={Receipt} label="Imprimer la facture" onClick={() => openPdfInNewTab(`/certificates/${cert.id}/invoice`)} />
+                                <IconButton
+                                  icon={Receipt}
+                                  label="Imprimer la facture"
+                                  onClick={() => pdfPreview.open(`/certificates/${cert.id}/invoice`).catch((err) => setError(apiErrorMessage(err)))}
+                                />
                               )}
                               {isFinalized && canPrint && (
-                                <IconButton icon={Printer} label="Imprimer" onClick={() => openPdfInNewTab(`/certificates/${cert.id}/print`)} />
+                                <IconButton
+                                  icon={Printer}
+                                  label="Imprimer"
+                                  onClick={() => pdfPreview.open(`/certificates/${cert.id}/print`).catch((err) => setError(apiErrorMessage(err)))}
+                                />
                               )}
                               {cert.payment_status === 'paid' && canCancelPayment && (
                                 <IconButton
@@ -281,6 +310,7 @@ export function CertificatesPage() {
           </div>
         )}
       </Card>
+      {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={handlePreviewClose} />}
     </div>
   )
 }

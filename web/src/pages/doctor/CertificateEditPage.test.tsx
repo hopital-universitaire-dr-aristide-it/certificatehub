@@ -5,15 +5,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CertificateEditPage } from './CertificateEditPage'
 import { api } from '../../lib/api'
-import { openPdfInNewTab } from '../../lib/pdf'
 import type { Certificate, CertificateType, FormField, Patient } from '../../types'
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
   return { ...actual, api: { get: vi.fn(), put: vi.fn(), post: vi.fn() } }
 })
-
-vi.mock('../../lib/pdf', () => ({ openPdfInNewTab: vi.fn().mockResolvedValue(undefined) }))
 
 const certificateTypes: CertificateType[] = [
   { id: 1, form_definition_id: 1, form_label: 'Certificat de santé', is_active: true, fee_amount: 500, numbering_prefix: null, numbering_next_value: 4827 },
@@ -99,7 +96,8 @@ describe('CertificateEditPage', () => {
     vi.mocked(api.get).mockReset()
     vi.mocked(api.put).mockReset()
     vi.mocked(api.post).mockReset()
-    vi.mocked(openPdfInNewTab).mockClear()
+    URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+    URL.revokeObjectURL = vi.fn()
   })
 
   it('renders patient info and the dynamic form for a draft certificate', async () => {
@@ -198,11 +196,35 @@ describe('CertificateEditPage', () => {
     expect(screen.getByText('Aperçu')).toBeInTheDocument()
   })
 
-  it('opens a preview PDF once the certificate has saved data', async () => {
-    renderPage(draftCertificate({ form_data: { outcome: 'sain' } }))
+  it('opens the preview PDF in an inline modal once the certificate has saved data', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificates/1') return Promise.resolve({ data: { data: draftCertificate({ form_data: { outcome: 'sain' } }) } })
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/patients/1') return Promise.resolve({ data: { data: patient } })
+      if (url === '/form-definitions/1/fields') return Promise.resolve({ data: { data: fields } })
+      if (url === '/certificates/1/preview') return Promise.resolve({ data: new Blob(['%PDF-1.4']) })
+      return Promise.resolve({ data: { data: [] } })
+    })
+
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/doctor/certificates/1']}>
+          <Routes>
+            <Route path="/doctor/certificates/:id" element={<CertificateEditPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
     await waitFor(() => expect(screen.getByText('Aperçu')).toBeInTheDocument())
     expect(screen.getByText('Aperçu')).not.toBeDisabled()
+
     await userEvent.click(screen.getByText('Aperçu'))
-    expect(openPdfInNewTab).toHaveBeenCalledWith('/certificates/1/preview')
+
+    await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
+    expect(screen.getByTitle('Document PDF')).toHaveAttribute('src', 'blob:mock-url')
+
+    await userEvent.click(screen.getByLabelText('Fermer'))
+    expect(screen.queryByTitle('Document PDF')).not.toBeInTheDocument()
   })
 })

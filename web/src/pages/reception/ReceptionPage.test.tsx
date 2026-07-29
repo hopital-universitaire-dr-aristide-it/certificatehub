@@ -4,15 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { ReceptionPage } from './ReceptionPage'
 import { renderWithProviders, seedUser, makeUser } from '../../test/renderWithProviders'
 import { api } from '../../lib/api'
-import { openPdfInNewTab } from '../../lib/pdf'
 import type { Certificate, CertificateType } from '../../types'
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
   return { ...actual, api: { get: vi.fn(), post: vi.fn() } }
 })
-
-vi.mock('../../lib/pdf', () => ({ openPdfInNewTab: vi.fn().mockResolvedValue(undefined) }))
 
 const certificateTypes: CertificateType[] = [
   { id: 1, form_definition_id: 1, form_label: 'Certificat de santé', is_active: true, fee_amount: 500, numbering_prefix: null, numbering_next_value: 4827 },
@@ -43,7 +40,8 @@ describe('ReceptionPage', () => {
   beforeEach(() => {
     vi.mocked(api.get).mockReset()
     vi.mocked(api.post).mockReset()
-    vi.mocked(openPdfInNewTab).mockClear()
+    URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+    URL.revokeObjectURL = vi.fn()
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
       if (url === '/visits') return Promise.resolve({ data: { data: [visit] } })
@@ -112,13 +110,16 @@ describe('ReceptionPage', () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
       if (url === '/visits') return Promise.resolve({ data: { data: [{ ...visit, status: 'finalized', payment_status: 'paid' }] } })
+      if (url === '/certificates/10/print') return Promise.resolve({ data: new Blob(['%PDF-1.4']) })
       return Promise.resolve({ data: { data: [] } })
     })
     renderPage(['certificate.create', 'certificate.mark_paid', 'certificate.print'])
 
     await waitFor(() => expect(screen.getByText('Prêt à imprimer')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: 'Imprimer' }))
-    expect(openPdfInNewTab).toHaveBeenCalledWith('/certificates/10/print')
+
+    await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
+    expect(screen.getByTitle('Document PDF')).toHaveAttribute('src', 'blob:mock-url')
   })
 
   it('hides the print button for users without certificate.print', async () => {
