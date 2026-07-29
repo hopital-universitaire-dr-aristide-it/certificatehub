@@ -3,12 +3,12 @@
 <head>
     <meta charset="utf-8">
     <style>
-        @page { margin: 30mm 25mm; }
+        /* Imprime sur papier a en-tete pre-imprime (logo + ligne separatrice
+           deja sur le papier fourni par l'hopital) — pas d'en-tete ici, la
+           marge haute (55mm, mesuree sur la feuille physique) laisse cette
+           zone vide plutot que d'y superposer du texte. */
+        @page { margin: 55mm 25mm 30mm 25mm; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 13.5px; color: #111; }
-
-        .header { text-align: center; padding-bottom: 14px; margin-bottom: 20px; border-bottom: 2px solid #111; }
-        .header h1 { text-align: center; font-size: 22px; font-weight: bold; margin: 0 0 6px 0; letter-spacing: 0.5px; }
-        .header p { text-align: center; margin: 1px 0; font-size: 10px; color: #444; }
 
         .title { text-align: center; font-size: 13px; font-weight: bold; margin: 0 0 20px 0; text-transform: uppercase; letter-spacing: 1px; }
 
@@ -33,13 +33,6 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Hôpital Universitaire Dr. Aristide</h1>
-        <p>Avenue Hôpital Dr. Aristide / Tabarre 48</p>
-        <p>Tabarre Haïti, w.i.</p>
-        <p>Tel +509 2817-3202 / 2949-3202</p>
-    </div>
-
     <div class="title">Certificat de santé</div>
 
     @if($certificateNumber)
@@ -50,7 +43,7 @@
 
     <p>
         Je, soussigné, Dr. {{ $doctorName }}, Docteur en Médecine, affecté à l'Hôpital Universitaire
-        Dr. Aristide, certifie avoir examiné le patient dont l'identité suit :
+        Dr. Aristide, certifie avoir examiné :
     </p>
 
     <table class="identity">
@@ -59,7 +52,7 @@
             <td>{{ $patient['full_name'] }}</td>
         </tr>
         <tr>
-            <td class="label">Date de naissance ou Age</td>
+            <td class="label">Date de naissance</td>
             <td>{{ $patient['date_of_birth_or_age'] }}</td>
         </tr>
         <tr>
