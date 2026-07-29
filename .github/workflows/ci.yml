@@ -133,8 +133,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Contexte = racine du depot (pas ./api) : le Dockerfile copie
+      # "api/" et "docker/php/*.ini" depuis la racine, comme docker-compose.yml
+      # le fait deja pour le service "app" en dev/prod.
       - name: Build API image (production target)
-        run: docker build -f docker/php/Dockerfile --target production -t certhub-api:ci ./api
+        run: docker build -f docker/php/Dockerfile --target production -t certhub-api:ci .
 
       - name: Build frontend static assets
         run: docker build --target export -o /tmp/web-dist ./web
