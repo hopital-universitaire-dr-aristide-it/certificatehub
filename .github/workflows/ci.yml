@@ -48,6 +48,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Le service postgres ci-dessus est une image nue, sans le script
+      # docker/postgres/init.sql que docker-compose.yml monte en prod/dev —
+      # sans ca, unaccent_lower() (utilisee par la migration patients pour
+      # l'index de recherche/dedup) n'existe pas et toute migration echoue.
+      - name: Activer unaccent/pg_trgm sur la base de test
+        run: |
+          PGPASSWORD=certhub_test psql -h 127.0.0.1 -U certhub_test -d certhub_test <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS pg_trgm;
+          CREATE EXTENSION IF NOT EXISTS unaccent;
+          CREATE OR REPLACE FUNCTION unaccent_lower(text)
+          RETURNS text AS $$
+            SELECT unaccent(lower($1));
+          $$ LANGUAGE sql IMMUTABLE;
+          SQL
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
