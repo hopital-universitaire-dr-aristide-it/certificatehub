@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Banknote, Printer, Receipt } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
@@ -10,6 +10,7 @@ import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
 import { Select, Label, FieldError } from '../../components/ui/Field'
 import { PdfModal } from '../../components/ui/PdfModal'
+import { ProgressBar } from '../../components/ui/ProgressBar'
 import { PatientAutocomplete } from '../../components/patients/PatientAutocomplete'
 import { NewPatientForm } from '../../components/patients/NewPatientForm'
 import type { Certificate, CertificateType, Patient, PatientSummary, PaginatedResponse } from '../../types'
@@ -24,7 +25,7 @@ export function ReceptionPage() {
   const [mode, setMode] = useState<'search' | 'create'>('search')
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | Patient | null>(null)
   const [certificateTypeId, setCertificateTypeId] = useState<string>('')
-  const [markPaidAtRegistration, setMarkPaidAtRegistration] = useState(false)
+  const [markPaidAtRegistration, setMarkPaidAtRegistration] = useState(true)
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -40,6 +41,14 @@ export function ReceptionPage() {
       return data.data.filter((t) => t.is_active)
     },
   })
+
+  // Le certificat de sante est le seul type utilise au quotidien — le
+  // pre-selectionner evite un clic repetitif a l'accueil a chaque visite.
+  useEffect(() => {
+    if (certificateTypeId || !certificateTypes?.length) return
+    const defaultType = certificateTypes.find((t) => t.form_label === 'Certificat de santé') ?? certificateTypes[0]
+    setCertificateTypeId(String(defaultType.id))
+  }, [certificateTypes, certificateTypeId])
 
   const { data: visits } = useQuery({
     queryKey: ['visits'],
@@ -61,8 +70,7 @@ export function ReceptionPage() {
     },
     onSuccess: () => {
       setSelectedPatient(null)
-      setCertificateTypeId('')
-      setMarkPaidAtRegistration(false)
+      setMarkPaidAtRegistration(true)
       queryClient.invalidateQueries({ queryKey: ['visits'] })
     },
     onError: (err) => setRegisterError(apiErrorMessage(err)),
@@ -199,6 +207,7 @@ export function ReceptionPage() {
         <Button className="mt-4" onClick={handleRegister} disabled={registerVisit.isPending}>
           {registerVisit.isPending ? 'Enregistrement...' : 'Enregistrer la visite'}
         </Button>
+        {registerVisit.isPending && <ProgressBar label="Enregistrement de la visite..." />}
       </Card>
 
       <Card>

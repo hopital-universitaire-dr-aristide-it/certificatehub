@@ -4,6 +4,7 @@ import { api, apiErrorMessage } from '../../lib/api'
 import { Input, Label, Select, FieldError } from '../ui/Field'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
+import { ProgressBar } from '../ui/ProgressBar'
 import type { Patient, PatientSummary } from '../../types'
 
 interface NewPatientFormProps {
@@ -90,6 +91,7 @@ export function NewPatientForm({ onCreated }: NewPatientFormProps) {
       <Button type="submit" disabled={mutation.isPending}>
         {mutation.isPending ? 'Enregistrement...' : 'Créer le patient'}
       </Button>
+      {mutation.isPending && <ProgressBar label="Enregistrement du patient..." />}
     </form>
   )
 }

@@ -88,7 +88,7 @@
             <td><div class="sig-line"></div></td>
         </tr>
         <tr>
-            <td class="label">Prestataire</td>
+            <td class="label">Dr. {{ $doctorName }}<br>Prestataire</td>
             <td class="label">{{ $directeurMedicalName }}<br>Directeur Médical</td>
         </tr>
     </table>
