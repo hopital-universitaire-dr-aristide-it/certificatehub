@@ -56,6 +56,26 @@ class PatientManagementTest extends TestCase
         $this->assertNotEmpty($response->json('potential_duplicates'));
     }
 
+    public function test_create_reuses_the_existing_patient_on_an_exact_match_instead_of_duplicating(): void
+    {
+        $reception = $this->userWithRole('reception');
+        $existing = Patient::factory()->create([
+            'first_name' => 'Marie', 'last_name' => 'Joseph', 'sex' => 'F', 'date_of_birth' => '1995-03-12',
+        ]);
+
+        $response = $this->actingAs($reception, 'sanctum')->postJson('/api/v1/patients', [
+            'first_name' => 'marie',
+            'last_name' => 'joseph',
+            'sex' => 'F',
+            'date_of_birth' => '1995-03-12',
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('patient.id', $existing->id);
+        $this->assertSame([], $response->json('potential_duplicates'));
+        $this->assertSame(1, Patient::count());
+    }
+
     public function test_doctor_cannot_create_a_patient(): void
     {
         $doctor = $this->userWithRole('doctor');

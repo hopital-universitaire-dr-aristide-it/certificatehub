@@ -10,12 +10,26 @@ class PatientService
     public function __construct(private readonly DeduplicationService $deduplicationService) {}
 
     /**
-     * Crée un nouveau mini-dossier patient. Retourne aussi les doublons
-     * potentiels détectés (l'accueil décide de continuer ou de réutiliser
-     * un dossier existant).
+     * Crée un nouveau mini-dossier patient — sauf si un dossier correspond
+     * déjà exactement (nom, prénom, sexe, date de naissance) : dans ce cas on
+     * le réutilise directement plutôt que de créer un doublon silencieux (voir
+     * DeduplicationService::findExactMatch). Retourne aussi les doublons
+     * potentiels détectés par ressemblance floue quand un nouveau dossier est
+     * bien créé, pour que l'accueil puisse encore juger au cas par cas.
      */
     public function create(array $data, int $createdBy): array
     {
+        $existing = $this->deduplicationService->findExactMatch(
+            $data['first_name'],
+            $data['last_name'],
+            $data['sex'] ?? null,
+            $data['date_of_birth'] ?? null,
+        );
+
+        if ($existing) {
+            return ['patient' => $existing, 'potential_duplicates' => collect()];
+        }
+
         $duplicates = $this->deduplicationService->findPotentialDuplicates(
             $data['first_name'],
             $data['last_name'],

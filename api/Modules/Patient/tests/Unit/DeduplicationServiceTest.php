@@ -51,4 +51,48 @@ class DeduplicationServiceTest extends TestCase
 
         $this->assertSame($sameDob->id, $matches->first()->id);
     }
+
+    public function test_exact_match_finds_patient_with_identical_name_sex_and_dob(): void
+    {
+        $patient = Patient::factory()->create([
+            'first_name' => 'Djoovelyne', 'last_name' => 'Étienne', 'sex' => 'F', 'date_of_birth' => '1990-05-01',
+        ]);
+
+        $match = (new DeduplicationService)->findExactMatch('djoovelyne', 'etienne', 'F', '1990-05-01');
+
+        $this->assertSame($patient->id, $match?->id);
+    }
+
+    public function test_exact_match_returns_null_without_a_date_of_birth(): void
+    {
+        Patient::factory()->create([
+            'first_name' => 'Marie', 'last_name' => 'Joseph', 'sex' => 'F', 'date_of_birth' => null,
+        ]);
+
+        $match = (new DeduplicationService)->findExactMatch('Marie', 'Joseph', 'F', null);
+
+        $this->assertNull($match);
+    }
+
+    public function test_exact_match_requires_the_same_sex(): void
+    {
+        Patient::factory()->create([
+            'first_name' => 'Robert', 'last_name' => 'Casimir', 'sex' => 'M', 'date_of_birth' => '1980-01-01',
+        ]);
+
+        $match = (new DeduplicationService)->findExactMatch('Robert', 'Casimir', 'F', '1980-01-01');
+
+        $this->assertNull($match);
+    }
+
+    public function test_exact_match_requires_the_same_date_of_birth(): void
+    {
+        Patient::factory()->create([
+            'first_name' => 'Robert', 'last_name' => 'Casimir', 'sex' => 'M', 'date_of_birth' => '1980-01-01',
+        ]);
+
+        $match = (new DeduplicationService)->findExactMatch('Robert', 'Casimir', 'M', '1981-01-01');
+
+        $this->assertNull($match);
+    }
 }
