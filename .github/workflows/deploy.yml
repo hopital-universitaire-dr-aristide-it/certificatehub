@@ -69,6 +69,14 @@ jobs:
       - name: Migrations
         run: docker compose exec -T app php artisan migrate --force
 
+      # Idempotent (firstOrCreate/syncPermissions) : sans danger a rejouer a
+      # chaque deploiement. Necessaire car les migrations ne creent que le
+      # schema, jamais les lignes roles/permissions elles-memes — sans cette
+      # etape, toute permission ajoutee au seeder par un commit reste absente
+      # en base tant que personne ne la relance a la main sur ce poste.
+      - name: Synchroniser roles et permissions
+        run: docker compose exec -T app php artisan db:seed --class="Modules\SystemAdmin\Database\Seeders\RolesAndPermissionsSeeder" --force
+
       - name: Rafraichir les caches Laravel
         run: |
           docker compose exec -T app php artisan config:cache
