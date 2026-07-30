@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { usePdfPreview } from '../../lib/usePdfPreview'
+import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
@@ -43,6 +44,7 @@ export function CertificateEditPage() {
   })
 
   const certificateType = certificateTypes?.find((t) => t.id === certificate?.certificate_type_id)
+  const isFinalized = certificate?.status === 'finalized'
 
   const { data: patient, isError: isPatientError, error: patientError } = useQuery({
     queryKey: ['patient', certificate?.patient_id],
@@ -78,13 +80,31 @@ export function CertificateEditPage() {
     },
     onSuccess: () => {
       setIsDirty(false)
+      setError(null)
       queryClient.invalidateQueries({ queryKey: ['certificate', certificateId] })
     },
     onError: (err) => setError(apiErrorMessage(err)),
   })
 
+  // Sauvegarde automatique : plus besoin pour le medecin de penser a cliquer
+  // "Enregistrer" — on persiste la saisie peu apres la derniere frappe. Ne
+  // se declenche jamais sur l'hydratation initiale (isDirty ne passe a true
+  // que via handleFieldChange, une action de l'utilisateur).
+  const debouncedValues = useDebouncedValue(values, 1000)
+  useEffect(() => {
+    if (!isDirty || isFinalized) return
+    saveMutation.mutate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedValues, isFinalized])
+
   const finalizeMutation = useMutation({
     mutationFn: async () => {
+      // Flush d'une saisie encore en attente de debounce, pour ne jamais
+      // finaliser sur des donnees plus anciennes que ce que le medecin vient
+      // de taper.
+      if (isDirty) {
+        await saveMutation.mutateAsync()
+      }
       const { data } = await api.post<{ data: Certificate }>(`/certificates/${certificateId}/finalize`)
       return data.data
     },
@@ -101,6 +121,9 @@ export function CertificateEditPage() {
     setError(null)
     setIsBusy(true)
     try {
+      if (isDirty) {
+        await saveMutation.mutateAsync()
+      }
       await pdfPreview.open(`/certificates/${certificateId}/preview`)
     } catch (err) {
       setError(apiErrorMessage(err))
@@ -122,9 +145,12 @@ export function CertificateEditPage() {
     return <Card>{loadError ?? 'Impossible de charger ce certificat.'}</Card>
   }
 
-  const isFinalized = certificate.status === 'finalized'
-  const hasSavedData = !!(certificate.form_data && Object.keys(certificate.form_data).length > 0)
-  const canPreview = hasSavedData && !isBusy
+  // Base locale (pas certificate.form_data) : l'apercu flush une saisie en
+  // attente avant de s'ouvrir, donc pas besoin d'attendre un aller-retour de
+  // sauvegarde pour le debloquer — seulement qu'il y ait quelque chose a
+  // montrer.
+  const hasFormData = Object.keys(values).length > 0
+  const canPreview = hasFormData && !isBusy
 
   return (
     <div className="space-y-6">
@@ -159,7 +185,13 @@ export function CertificateEditPage() {
         <CardHeader
           title="Formulaire"
           action={
-            !isFinalized && !isDirty && hasSavedData ? <Badge tone="green">Enregistré</Badge> : undefined
+            !isFinalized ? (
+              saveMutation.isPending ? (
+                <Badge tone="neutral">Enregistrement...</Badge>
+              ) : hasFormData && !isDirty ? (
+                <Badge tone="green">Enregistré</Badge>
+              ) : undefined
+            ) : undefined
           }
         />
         {isCertificateTypesError && <FieldError message="Impossible de charger les types de certificats." />}
@@ -173,21 +205,16 @@ export function CertificateEditPage() {
         <FieldError message={error ?? undefined} />
 
         <div className="mt-6 flex flex-wrap items-center gap-2">
-          {!isFinalized && (
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
-            </Button>
-          )}
-          <Button variant="secondary" onClick={handlePreview} disabled={!canPreview} title={!hasSavedData ? "Enregistrez d'abord le formulaire" : undefined}>
+          <Button variant="secondary" onClick={handlePreview} disabled={!canPreview} title={!hasFormData ? "Remplissez d'abord le formulaire" : undefined}>
             Aperçu
           </Button>
           {!isFinalized && (
-            <Button variant="secondary" onClick={() => finalizeMutation.mutate()} disabled={finalizeMutation.isPending}>
+            <Button onClick={() => finalizeMutation.mutate()} disabled={finalizeMutation.isPending}>
               {finalizeMutation.isPending ? 'Finalisation...' : 'Finaliser'}
             </Button>
           )}
-          {!isFinalized && !hasSavedData && (
-            <span className="text-sm text-neutral-500">Aperçu non disponible avant le premier enregistrement.</span>
+          {!isFinalized && !hasFormData && (
+            <span className="text-sm text-neutral-500">Aperçu non disponible avant de remplir le formulaire.</span>
           )}
         </div>
         {isFinalized && (

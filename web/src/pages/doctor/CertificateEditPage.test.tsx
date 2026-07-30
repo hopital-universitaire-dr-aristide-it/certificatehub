@@ -106,7 +106,7 @@ describe('CertificateEditPage', () => {
     await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
     expect(screen.getByText('35')).toBeInTheDocument()
     expect(screen.getByLabelText('Résultat *')).toBeInTheDocument()
-    expect(screen.getByText('Enregistrer')).toBeInTheDocument()
+    expect(screen.queryByText('Enregistrer')).not.toBeInTheDocument()
     expect(screen.getByText('Finaliser')).toBeInTheDocument()
   })
 
@@ -129,7 +129,7 @@ describe('CertificateEditPage', () => {
     await waitFor(() => expect(screen.getByText('Certificat introuvable.')).toBeInTheDocument())
   })
 
-  it('saves form data and shows a saved indicator', async () => {
+  it('saves automatically a short while after the doctor stops typing, without clicking a button', async () => {
     // Le GET doit refleter la nouvelle valeur apres l'invalidation qui suit
     // le PUT (comme le ferait le vrai backend) — un mock GET fige sur la
     // certification initiale ne detecterait jamais une regression sur le
@@ -158,20 +158,28 @@ describe('CertificateEditPage', () => {
       </QueryClientProvider>,
     )
 
-    await waitFor(() => expect(screen.getByText('Enregistrer')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Résultat *')).toBeInTheDocument())
     expect(screen.queryByText('Enregistré')).not.toBeInTheDocument()
+    expect(api.put).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByText('Enregistrer'))
+    await userEvent.selectOptions(screen.getByLabelText('Résultat *'), 'sain')
 
-    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/certificates/1', { data: {} }))
+    await waitFor(
+      () => expect(api.put).toHaveBeenCalledWith('/certificates/1', { data: { outcome: 'sain' } }),
+      { timeout: 3000 },
+    )
     await waitFor(() => expect(screen.getByText('Enregistré')).toBeInTheDocument())
   })
 
-  it('disables the preview button until the certificate has been saved at least once', async () => {
+  it('disables the preview button until the form has data', async () => {
     renderPage(draftCertificate({ form_data: {} }))
     await waitFor(() => expect(screen.getByText('Aperçu')).toBeInTheDocument())
     expect(screen.getByText('Aperçu')).toBeDisabled()
-    expect(screen.getByText("Aperçu non disponible avant le premier enregistrement.")).toBeInTheDocument()
+    expect(screen.getByText("Aperçu non disponible avant de remplir le formulaire.")).toBeInTheDocument()
+
+    await userEvent.selectOptions(screen.getByLabelText('Résultat *'), 'sain')
+
+    expect(screen.getByText('Aperçu')).not.toBeDisabled()
   })
 
   it('finalizes the certificate', async () => {
@@ -184,14 +192,29 @@ describe('CertificateEditPage', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/certificates/1/finalize'))
   })
 
-  it('hides finalize/save once finalized but keeps the preview button, and shows a print-at-reception notice', async () => {
+  it('flushes a pending unsaved edit before finalizing', async () => {
+    renderPage(draftCertificate())
+    vi.mocked(api.put).mockResolvedValue({ data: { data: draftCertificate({ form_data: { outcome: 'sain' } }) } })
+    vi.mocked(api.post).mockResolvedValue({ data: { data: draftCertificate({ status: 'finalized' }) } })
+
+    await waitFor(() => expect(screen.getByLabelText('Résultat *')).toBeInTheDocument())
+    await userEvent.selectOptions(screen.getByLabelText('Résultat *'), 'sain')
+
+    // Finalise immediatement, avant que le debounce d'auto-sauvegarde n'ait
+    // eu le temps de se declencher tout seul.
+    await userEvent.click(screen.getByText('Finaliser'))
+
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/certificates/1', { data: { outcome: 'sain' } }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/certificates/1/finalize'))
+  })
+
+  it('hides the finalize action once finalized but keeps the preview button, and shows a print-at-reception notice', async () => {
     renderPage(draftCertificate({ status: 'finalized' }))
 
     await waitFor(() =>
       expect(screen.getByText(/prêt à être imprimé à l'accueil/)).toBeInTheDocument(),
     )
     expect(screen.queryByText('Finaliser')).not.toBeInTheDocument()
-    expect(screen.queryByText('Enregistrer')).not.toBeInTheDocument()
     expect(screen.queryByText('Imprimer')).not.toBeInTheDocument()
     expect(screen.getByText('Aperçu')).toBeInTheDocument()
   })
@@ -223,6 +246,7 @@ describe('CertificateEditPage', () => {
 
     await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
     expect(screen.getByTitle('Document PDF')).toHaveAttribute('src', 'blob:mock-url')
+    expect(api.put).not.toHaveBeenCalled()
 
     await userEvent.click(screen.getByLabelText('Fermer'))
     expect(screen.queryByTitle('Document PDF')).not.toBeInTheDocument()
