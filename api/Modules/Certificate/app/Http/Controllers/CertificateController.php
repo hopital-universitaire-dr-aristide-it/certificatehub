@@ -25,11 +25,14 @@ class CertificateController extends Controller
 
     /**
      * Certificats payés, en attente d'être remplis/finalisés — tout médecin
-     * peut les prendre en charge.
+     * peut les prendre en charge. patient_name : recherche sans avoir a
+     * parcourir les pages quand le backlog depasse la premiere page.
      */
-    public function queue()
+    public function queue(Request $request)
     {
-        return CertificateResource::collection($this->certificateService->queue()->paginate(20));
+        $patientName = $request->filled('patient_name') ? $request->string('patient_name')->toString() : null;
+
+        return CertificateResource::collection($this->certificateService->queue($patientName)->paginate(20));
     }
 
     public function show(Certificate $certificate)

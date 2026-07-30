@@ -9,6 +9,7 @@ use Modules\Certificate\Models\Certificate;
 use Modules\Certificate\Models\CertificateType;
 use Modules\FormHub\Database\Seeders\CertificatSanteFormSeeder;
 use Modules\FormHub\Models\FormDefinition;
+use Modules\Patient\Models\Patient;
 use Modules\SystemAdmin\Database\Seeders\RolesAndPermissionsSeeder;
 use Tests\TestCase;
 
@@ -50,6 +51,44 @@ class CertificateWorkflowTest extends TestCase
         $response->assertOk();
         $this->assertCount(1, $response->json('data'));
         $this->assertSame($paid->id, $response->json('data.0.id'));
+    }
+
+    public function test_queue_can_be_filtered_by_patient_name(): void
+    {
+        $type = $this->santeType();
+        $marie = Patient::factory()->create(['first_name' => 'Marie', 'last_name' => 'Joseph']);
+        $robert = Patient::factory()->create(['first_name' => 'Robert', 'last_name' => 'Casimir']);
+        Certificate::factory()->create(['certificate_type_id' => $type->id, 'patient_id' => $marie->id, 'payment_status' => PaymentStatus::Paid]);
+        Certificate::factory()->create(['certificate_type_id' => $type->id, 'patient_id' => $robert->id, 'payment_status' => PaymentStatus::Paid]);
+        $doctor = $this->userWithRole('doctor');
+
+        $response = $this->actingAs($doctor, 'sanctum')->getJson('/api/v1/certificates/queue?patient_name=marie');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+        $this->assertSame('Marie Joseph', $response->json('data.0.patient_name'));
+    }
+
+    /**
+     * Regression : le backlog depasse une page (20) sans que l'interface
+     * medecin n'ait de pagination — les certificats les plus recents (tri
+     * FIFO par date de creation) devenaient invisibles. Voir DoctorQueuePage.
+     */
+    public function test_queue_is_paginated_oldest_first(): void
+    {
+        $type = $this->santeType();
+        Certificate::factory()->count(21)->create(['certificate_type_id' => $type->id, 'payment_status' => PaymentStatus::Paid]);
+        $doctor = $this->userWithRole('doctor');
+
+        $firstPage = $this->actingAs($doctor, 'sanctum')->getJson('/api/v1/certificates/queue');
+        $firstPage->assertOk();
+        $this->assertCount(20, $firstPage->json('data'));
+        $this->assertSame(2, $firstPage->json('meta.last_page'));
+        $this->assertSame(21, $firstPage->json('meta.total'));
+
+        $secondPage = $this->actingAs($doctor, 'sanctum')->getJson('/api/v1/certificates/queue?page=2');
+        $secondPage->assertOk();
+        $this->assertCount(1, $secondPage->json('data'));
     }
 
     public function test_reception_cannot_access_doctor_queue(): void

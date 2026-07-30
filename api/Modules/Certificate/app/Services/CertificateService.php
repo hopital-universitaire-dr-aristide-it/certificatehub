@@ -15,13 +15,26 @@ class CertificateService
 {
     /**
      * Certificats payés, pas encore finalisés — disponibles pour tout médecin.
+     * Tri du plus ancien au plus recent (FIFO, premier paye = premier servi) —
+     * $patientName sert a retrouver un patient precis sans avoir a parcourir
+     * les pages quand le backlog depasse une page.
      */
-    public function queue(): Builder
+    public function queue(?string $patientName = null): Builder
     {
-        return Certificate::with('patient')
+        $query = Certificate::with('patient')
             ->where('status', CertificateStatus::Draft)
-            ->where('payment_status', PaymentStatus::Paid)
-            ->orderBy('created_at');
+            ->where('payment_status', PaymentStatus::Paid);
+
+        if ($patientName) {
+            $query->whereHas('patient', function ($patientQuery) use ($patientName) {
+                $patientQuery->whereRaw(
+                    "unaccent_lower(first_name || ' ' || last_name) LIKE unaccent_lower(?)",
+                    ['%'.$patientName.'%'],
+                );
+            });
+        }
+
+        return $query->orderBy('created_at');
     }
 
     /**
