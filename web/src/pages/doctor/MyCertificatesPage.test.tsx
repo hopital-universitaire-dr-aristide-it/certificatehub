@@ -12,6 +12,7 @@ const cert: Certificate = {
   id: 1,
   patient_id: 1,
   patient_name: 'Marie Claire',
+  patient_age: 34,
   certificate_type_id: 1,
   doctor_id: 1,
   fee_amount: 500,
@@ -45,6 +46,7 @@ describe('MyCertificatesPage', () => {
     await waitFor(() => expect(screen.getByText('Marie Claire')).toBeInTheDocument())
     expect(api.get).toHaveBeenCalledWith('/certificates/mine')
     expect(screen.getByText('CS-000001')).toBeInTheDocument()
+    expect(screen.getByText('34')).toBeInTheDocument()
     expect(screen.getByText('Finalisé')).toBeInTheDocument()
     expect(screen.getByText('Voir')).toBeInTheDocument()
   })

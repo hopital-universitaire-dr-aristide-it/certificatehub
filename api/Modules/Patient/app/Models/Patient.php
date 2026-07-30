@@ -3,6 +3,7 @@
 namespace Modules\Patient\Models;
 
 use App\Models\User;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,6 +45,19 @@ class Patient extends Model
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    /**
+     * Calculee a partir de date_of_birth (age exact, recalcule a chaque lecture
+     * par rapport a aujourd'hui) quand elle est connue. Sinon, on retombe sur
+     * la colonne 'age' saisie a la main — utile pour les patients qui ne
+     * connaissent pas leur date de naissance exacte.
+     */
+    protected function age(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?int $value) => $this->date_of_birth?->age ?? $value,
+        );
     }
 
     /**

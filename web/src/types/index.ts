@@ -46,6 +46,7 @@ export interface Certificate {
   id: number
   patient_id: number
   patient_name: string | null
+  patient_age?: number | null
   certificate_type_id: number
   doctor_id: number | null
   doctor_name?: string | null

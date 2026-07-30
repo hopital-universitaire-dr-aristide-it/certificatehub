@@ -23,6 +23,7 @@ export function MyCertificatesPage() {
           <thead>
             <tr className="border-b border-neutral-200 text-neutral-500 dark:border-neutral-800">
               <th className="py-2 pr-4">Patient</th>
+              <th className="py-2 pr-4">Âge</th>
               <th className="py-2 pr-4">N°</th>
               <th className="py-2 pr-4">Statut</th>
               <th className="py-2 pr-4">Date</th>
@@ -33,6 +34,7 @@ export function MyCertificatesPage() {
             {data?.map((cert) => (
               <tr key={cert.id} className="border-b border-neutral-100 dark:border-neutral-900">
                 <td className="py-2 pr-4">{cert.patient_name}</td>
+                <td className="py-2 pr-4">{cert.patient_age ?? '—'}</td>
                 <td className="py-2 pr-4">{cert.certificate_number ?? '—'}</td>
                 <td className="py-2 pr-4">
                   <Badge tone={cert.status === 'finalized' ? 'blue' : 'neutral'}>
@@ -49,7 +51,7 @@ export function MyCertificatesPage() {
             ))}
             {!isLoading && data?.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-4 text-center text-neutral-500">
+                <td colSpan={6} className="py-4 text-center text-neutral-500">
                   Aucun certificat réalisé pour l'instant.
                 </td>
               </tr>

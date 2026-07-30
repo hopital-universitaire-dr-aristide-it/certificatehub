@@ -13,6 +13,7 @@ class CertificateResource extends JsonResource
             'id' => $this->id,
             'patient_id' => $this->patient_id,
             'patient_name' => $this->whenLoaded('patient', fn () => $this->patient->full_name),
+            'patient_age' => $this->whenLoaded('patient', fn () => $this->patient->age),
             'certificate_type_id' => $this->certificate_type_id,
             'doctor_id' => $this->doctor_id,
             'doctor_name' => $this->whenLoaded('doctor', fn () => $this->doctor?->name),

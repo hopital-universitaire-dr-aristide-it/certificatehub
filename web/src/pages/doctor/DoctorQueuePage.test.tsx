@@ -12,6 +12,7 @@ const cert: Certificate = {
   id: 1,
   patient_id: 1,
   patient_name: 'Marie Claire',
+  patient_age: 34,
   certificate_type_id: 1,
   doctor_id: null,
   fee_amount: 500,
@@ -43,6 +44,7 @@ describe('DoctorQueuePage', () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('Marie Claire')).toBeInTheDocument())
     expect(screen.getByText('Prendre en charge')).toBeInTheDocument()
+    expect(screen.getByText('34')).toBeInTheDocument()
     expect(screen.queryByText('Montant')).not.toBeInTheDocument()
     expect(screen.queryByText(/500/)).not.toBeInTheDocument()
   })

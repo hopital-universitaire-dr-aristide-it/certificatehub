@@ -23,6 +23,7 @@ export function DoctorQueuePage() {
           <thead>
             <tr className="border-b border-neutral-200 text-neutral-500 dark:border-neutral-800">
               <th className="py-2 pr-4">Patient</th>
+              <th className="py-2 pr-4">Âge</th>
               <th className="py-2 pr-4">Enregistré le</th>
               <th className="py-2 pr-4"></th>
             </tr>
@@ -31,6 +32,7 @@ export function DoctorQueuePage() {
             {data?.map((cert) => (
               <tr key={cert.id} className="border-b border-neutral-100 dark:border-neutral-900">
                 <td className="py-2 pr-4">{cert.patient_name}</td>
+                <td className="py-2 pr-4">{cert.patient_age ?? '—'}</td>
                 <td className="py-2 pr-4">{new Date(cert.created_at).toLocaleString('fr-FR')}</td>
                 <td className="py-2 pr-4 text-right">
                   <Link to={`/doctor/certificates/${cert.id}`}>
@@ -41,7 +43,7 @@ export function DoctorQueuePage() {
             ))}
             {!isLoading && data?.length === 0 && (
               <tr>
-                <td colSpan={3} className="py-4 text-center text-neutral-500">
+                <td colSpan={4} className="py-4 text-center text-neutral-500">
                   Aucun certificat en attente.
                 </td>
               </tr>
