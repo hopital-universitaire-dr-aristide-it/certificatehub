@@ -1,12 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PatientsPage } from './PatientsPage'
+import { renderWithProviders, seedUser, makeUser } from '../../test/renderWithProviders'
 import { api } from '../../lib/api'
 import type { Patient, PatientSummary } from '../../types'
 
-vi.mock('../../lib/api', () => ({ api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }))
+vi.mock('../../lib/api', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
+  return { ...actual, api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }
+})
 
 const searchResult: PatientSummary = { id: 1, full_name: 'Jean Baptiste', date_of_birth: '1990-01-01', residence: 'Port-au-Prince' }
 
@@ -38,19 +41,16 @@ const trashedPatient: Patient = {
   deleted_at: new Date().toISOString(),
 }
 
-function renderPage() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  render(
-    <QueryClientProvider client={queryClient}>
-      <PatientsPage />
-    </QueryClientProvider>,
-  )
+function renderPage(permissions: string[] = ['patient.update']) {
+  seedUser(makeUser({ roles: ['superadmin'], permissions }))
+  renderWithProviders(<PatientsPage />)
 }
 
 describe('PatientsPage', () => {
   beforeEach(() => {
     vi.mocked(api.get).mockReset()
     vi.mocked(api.post).mockReset()
+    vi.mocked(api.put).mockReset()
     vi.mocked(api.delete).mockReset()
   })
 
@@ -77,6 +77,43 @@ describe('PatientsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
 
     expect(api.delete).toHaveBeenCalledWith('/patients/1')
+  })
+
+  it('hides the "Modifier" button without patient.update', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [listedPatient] } })
+    renderPage([])
+
+    await waitFor(() => expect(screen.getByText('Bertin Louissaint')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Modifier' })).not.toBeInTheDocument()
+  })
+
+  it('lets a superadmin edit a patient\'s info from the list', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/patients') return Promise.resolve({ data: { data: [listedPatient] } })
+      if (url === '/patients/3') return Promise.resolve({ data: { data: listedPatient } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    vi.mocked(api.put).mockResolvedValue({ data: { data: { ...listedPatient, residence: 'Delmas' } } })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Bertin Louissaint')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Prénom')).toHaveValue('Bertin'))
+    await userEvent.clear(screen.getByLabelText('Résidence'))
+    await userEvent.type(screen.getByLabelText('Résidence'), 'Delmas')
+    await userEvent.click(screen.getByText('Enregistrer'))
+
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith('/patients/3', {
+        first_name: 'Bertin',
+        last_name: 'Louissaint',
+        sex: 'M',
+        date_of_birth: '1985-05-05',
+        residence: 'Delmas',
+      }),
+    )
+    await waitFor(() => expect(screen.queryByText('Modifier le patient')).not.toBeInTheDocument())
   })
 
   it('lists trashed patients and lets a superadmin restore one', async () => {

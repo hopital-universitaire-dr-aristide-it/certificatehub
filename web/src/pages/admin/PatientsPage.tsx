@@ -1,21 +1,26 @@
 import { useState } from 'react'
-import { Trash2, RotateCcw } from 'lucide-react'
+import { Pencil, Trash2, RotateCcw } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
+import { useAuth } from '../../lib/auth'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
 import { FieldError } from '../../components/ui/Field'
 import { PatientAutocomplete } from '../../components/patients/PatientAutocomplete'
+import { PatientEditModal } from '../../components/patients/PatientEditModal'
 import type { Patient, PatientSummary, PaginatedResponse } from '../../types'
 
 type View = 'list' | 'search' | 'trash'
 
 export function PatientsPage() {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canEditPatient = hasPermission('patient.update')
   const [error, setError] = useState<string | null>(null)
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | Patient | null>(null)
+  const [editingPatientId, setEditingPatientId] = useState<number | null>(null)
   const [view, setView] = useState<View>('list')
 
   const { data: patients, isError: isListError } = useQuery({
@@ -108,7 +113,12 @@ export function PatientsPage() {
                       <td className="py-2 pr-4">{patient.date_of_birth ?? '—'}</td>
                       <td className="py-2 pr-4">{patient.residence ?? '—'}</td>
                       <td className="py-2 pr-4 text-right">
-                        <IconButton icon={Trash2} label="Supprimer" tone="danger" onClick={() => confirmDelete(patient)} />
+                        <div className="flex justify-end gap-1">
+                          {canEditPatient && (
+                            <IconButton icon={Pencil} label="Modifier" onClick={() => setEditingPatientId(patient.id)} />
+                          )}
+                          <IconButton icon={Trash2} label="Supprimer" tone="danger" onClick={() => confirmDelete(patient)} />
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -134,6 +144,9 @@ export function PatientsPage() {
                   <p className="text-sm font-medium">{selectedPatient.full_name}</p>
                   {selectedPatient.residence && <p className="text-xs text-neutral-500">{selectedPatient.residence}</p>}
                 </div>
+                {canEditPatient && (
+                  <IconButton icon={Pencil} label="Modifier" onClick={() => setEditingPatientId(selectedPatient.id)} />
+                )}
                 <IconButton icon={Trash2} label="Supprimer" tone="danger" onClick={() => confirmDelete(selectedPatient)} />
               </div>
             )}
@@ -164,6 +177,9 @@ export function PatientsPage() {
           </div>
         )}
       </Card>
+      {editingPatientId && (
+        <PatientEditModal patientId={editingPatientId} onClose={() => setEditingPatientId(null)} />
+      )}
     </div>
   )
 }
