@@ -3,12 +3,13 @@ import { Banknote, Printer, Receipt } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { usePdfPreview } from '../../lib/usePdfPreview'
+import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { useAuth } from '../../lib/auth'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
-import { Select, Label, FieldError } from '../../components/ui/Field'
+import { Select, Input, Label, FieldError } from '../../components/ui/Field'
 import { PdfModal } from '../../components/ui/PdfModal'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { PatientAutocomplete } from '../../components/patients/PatientAutocomplete'
@@ -32,6 +33,11 @@ export function ReceptionPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [printQueue, setPrintQueue] = useState<number[]>([])
   const [isPrintingSelection, setIsPrintingSelection] = useState(false)
+  const [visitsSearch, setVisitsSearch] = useState('')
+  const [visitsDateFrom, setVisitsDateFrom] = useState('')
+  const [visitsDateTo, setVisitsDateTo] = useState('')
+  const [visitsPage, setVisitsPage] = useState(1)
+  const debouncedVisitsSearch = useDebouncedValue(visitsSearch, 300)
   const canPrint = hasPermission('certificate.print')
   const pdfPreview = usePdfPreview()
 
@@ -51,14 +57,28 @@ export function ReceptionPage() {
     setCertificateTypeId(String(defaultType.id))
   }, [certificateTypes, certificateTypeId])
 
-  const { data: visits } = useQuery({
-    queryKey: ['visits'],
+  const { data: visitsResponse } = useQuery({
+    queryKey: ['visits', debouncedVisitsSearch, visitsDateFrom, visitsDateTo, visitsPage],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<Certificate>>('/visits')
-      return data.data
+      const { data } = await api.get<PaginatedResponse<Certificate>>('/visits', {
+        params: {
+          patient_name: debouncedVisitsSearch || undefined,
+          date_from: visitsDateFrom || undefined,
+          date_to: visitsDateTo || undefined,
+          page: visitsPage,
+        },
+      })
+      return data
     },
     refetchInterval: 10_000,
   })
+  const visits = visitsResponse?.data
+  const visitsMeta = visitsResponse?.meta
+
+  function handleVisitsSearchChange(value: string) {
+    setVisitsSearch(value)
+    setVisitsPage(1)
+  }
 
   const registerVisit = useMutation({
     mutationFn: async () => {
@@ -245,6 +265,43 @@ export function ReceptionPage() {
       <Card>
         <CardHeader title="Visites du jour" subtitle="Marquer le paiement pour libérer l'accès au médecin" />
         <FieldError message={printError ?? undefined} />
+
+        <div className="mb-4 grid grid-cols-3 gap-3">
+          <div>
+            <Label htmlFor="visits-search">Rechercher un patient</Label>
+            <Input
+              id="visits-search"
+              value={visitsSearch}
+              onChange={(e) => handleVisitsSearchChange(e.target.value)}
+              placeholder="Nom, prénom..."
+            />
+          </div>
+          <div>
+            <Label htmlFor="visits-date-from">Du</Label>
+            <Input
+              id="visits-date-from"
+              type="date"
+              value={visitsDateFrom}
+              onChange={(e) => {
+                setVisitsDateFrom(e.target.value)
+                setVisitsPage(1)
+              }}
+            />
+          </div>
+          <div>
+            <Label htmlFor="visits-date-to">Au</Label>
+            <Input
+              id="visits-date-to"
+              type="date"
+              value={visitsDateTo}
+              onChange={(e) => {
+                setVisitsDateTo(e.target.value)
+                setVisitsPage(1)
+              }}
+            />
+          </div>
+        </div>
+
         {canPrint && (
           <div className="mb-3">
             <Button variant="secondary" disabled={selected.size === 0 || isPrintingSelection} onClick={printSelection}>
@@ -258,6 +315,7 @@ export function ReceptionPage() {
               <tr className="border-b border-neutral-200 text-neutral-500 dark:border-neutral-800">
                 <th className="py-2 pr-4"></th>
                 <th className="py-2 pr-4">Patient</th>
+                <th className="py-2 pr-4">Enregistré le</th>
                 <th className="py-2 pr-4">Montant</th>
                 <th className="py-2 pr-4">Paiement</th>
                 <th className="py-2 pr-4">Statut</th>
@@ -278,6 +336,7 @@ export function ReceptionPage() {
                     )}
                   </td>
                   <td className="py-2 pr-4">{visit.patient_name}</td>
+                  <td className="py-2 pr-4">{new Date(visit.created_at).toLocaleString('fr-FR')}</td>
                   <td className="py-2 pr-4">{money(visit.fee_amount)}</td>
                   <td className="py-2 pr-4">
                     <Badge tone={visit.payment_status === 'paid' ? 'green' : 'amber'}>
@@ -312,7 +371,7 @@ export function ReceptionPage() {
               ))}
               {visits?.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-4 text-center text-neutral-500">
+                  <td colSpan={7} className="py-4 text-center text-neutral-500">
                     Aucune visite enregistrée.
                   </td>
                 </tr>
@@ -320,6 +379,30 @@ export function ReceptionPage() {
             </tbody>
           </table>
         </div>
+
+        {visitsMeta && visitsMeta.last_page > 1 && (
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <span className="text-neutral-500">
+              Page {visitsMeta.current_page} sur {visitsMeta.last_page} ({visitsMeta.total} au total)
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setVisitsPage((p) => p - 1)}
+                disabled={visitsMeta.current_page <= 1}
+              >
+                Précédent
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setVisitsPage((p) => p + 1)}
+                disabled={visitsMeta.current_page >= visitsMeta.last_page}
+              >
+                Suivant
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
       {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={handlePreviewClose} />}
     </div>

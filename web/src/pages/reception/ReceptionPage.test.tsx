@@ -237,6 +237,68 @@ describe('ReceptionPage', () => {
     await waitFor(() => expect(screen.queryByTitle('Document PDF')).not.toBeInTheDocument())
   })
 
+  it('shows the registration date and time for each visit', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.getByText(new Date(visit.created_at).toLocaleString('fr-FR'))).toBeInTheDocument()
+  })
+
+  it('searches today\'s visits by patient name, resetting to page 1', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+
+    await userEvent.type(screen.getByLabelText('Rechercher un patient'), 'Jean')
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: { patient_name: 'Jean', date_from: undefined, date_to: undefined, page: 1 },
+      }),
+    )
+  })
+
+  it('filters today\'s visits by a registration date range', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+
+    await userEvent.type(screen.getByLabelText('Du'), '2026-07-01')
+    await userEvent.type(screen.getByLabelText('Au'), '2026-07-30')
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: { patient_name: undefined, date_from: '2026-07-01', date_to: '2026-07-30', page: 1 },
+      }),
+    )
+  })
+
+  it('shows pagination controls and fetches the next page when today\'s visits exceed one page', async () => {
+    vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { page?: number } }) => {
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/visits') {
+        const page = config?.params?.page ?? 1
+        return Promise.resolve({
+          data: {
+            data: [{ ...visit, id: page }],
+            meta: { current_page: page, last_page: 2, per_page: 20, total: 21 },
+          },
+        })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Page 1 sur 2 (21 au total)')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Précédent' })).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: { patient_name: undefined, date_from: undefined, date_to: undefined, page: 2 },
+      }),
+    )
+    await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
+  })
+
   it('hides the print button for users without certificate.print', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
