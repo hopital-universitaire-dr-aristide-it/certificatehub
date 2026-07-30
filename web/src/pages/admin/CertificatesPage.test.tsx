@@ -159,4 +159,20 @@ describe('CertificatesPage', () => {
     expect(screen.queryByRole('button', { name: 'Annuler le paiement' })).not.toBeInTheDocument()
     expect(screen.queryByText('Corbeille')).not.toBeInTheDocument()
   })
+
+  it('hides the "Modifier" button without certificate.manage_all, shows it with it', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [cert()] } })
+    renderPage(oversightPermissions)
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Modifier' })).not.toBeInTheDocument()
+  })
+
+  it('shows the "Modifier" button for superadmin (certificate.manage_all)', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [cert()] } })
+    renderPage([...oversightPermissions, 'certificate.manage_all'])
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument()
+  })
 })

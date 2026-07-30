@@ -30,6 +30,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         Route::post('certificates/{certificate}/finalize', [CertificateController::class, 'finalize']);
     });
 
+    // Superadmin uniquement : edition "tout-en-un" (patient, medecin
+    // assigne, type, diagnostic), meme sur un certificat deja finalise.
+    Route::put('certificates/{certificate}/manage', [CertificateController::class, 'adminUpdate'])
+        ->middleware('can:certificate.manage_all');
+
     Route::get('certificates/{certificate}/print', [CertificateController::class, 'print'])
         ->middleware('can:certificate.print');
 

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
 use Modules\Certificate\Enums\CertificateStatus;
+use Modules\Certificate\Http\Requests\AdminUpdateCertificateRequest;
 use Modules\Certificate\Http\Requests\UpdateCertificateDataRequest;
 use Modules\Certificate\Http\Resources\CertificateResource;
 use Modules\Certificate\Models\Certificate;
@@ -14,6 +15,7 @@ use Modules\Certificate\Models\CertificatePrintLog;
 use Modules\Certificate\Services\CertificatePrintService;
 use Modules\Certificate\Services\CertificateService;
 use Modules\Certificate\Services\InvoiceService;
+use Modules\Patient\Services\PatientService;
 
 class CertificateController extends Controller
 {
@@ -21,6 +23,7 @@ class CertificateController extends Controller
         private readonly CertificateService $certificateService,
         private readonly CertificatePrintService $printService,
         private readonly InvoiceService $invoiceService,
+        private readonly PatientService $patientService,
     ) {}
 
     /**
@@ -52,6 +55,26 @@ class CertificateController extends Controller
         $certificate = $this->certificateService->finalize($certificate);
 
         return new CertificateResource($certificate->load('patient'));
+    }
+
+    /**
+     * Edition superadmin "tout-en-un" (voir certificate.manage_all) : corrige
+     * en un seul appel les infos du patient (repercutees sur le vrai
+     * dossier, pas seulement ce certificat), le medecin assigne, le type de
+     * certificat et les reponses du formulaire — y compris sur un certificat
+     * deja finalise.
+     */
+    public function adminUpdate(AdminUpdateCertificateRequest $request, Certificate $certificate)
+    {
+        $validated = $request->validated();
+
+        if (! empty($validated['patient'])) {
+            $this->patientService->update($certificate->patient, $validated['patient']);
+        }
+
+        $certificate = $this->certificateService->adminUpdate($certificate, collect($validated)->except('patient')->all());
+
+        return new CertificateResource($certificate->load(['patient', 'doctor']));
     }
 
     /**

@@ -47,6 +47,7 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     private array $superadminOnlyPermissions = [
         'user.delete', 'user.restore',
+        'certificate.manage_all',
     ];
 
     /**

@@ -45,6 +45,44 @@ class CertificateService
      */
     public function fillData(Certificate $certificate, array $submitted, User $doctor): Certificate
     {
+        $certificate->update([
+            'data' => array_merge($certificate->data ?? [], $this->normalizeFormData($certificate, $submitted)),
+            'doctor_id' => $certificate->doctor_id ?? $doctor->id,
+        ]);
+
+        return $certificate->fresh();
+    }
+
+    /**
+     * Edition superadmin "tout-en-un" (voir certificate.manage_all) : type de
+     * certificat, medecin assigne et reponses du formulaire — y compris sur
+     * un certificat deja finalise. Les infos patient sont geree a part par
+     * PatientService, dans le controller : ce service ne doit pas dependre
+     * du module Patient au-dela du modele deja utilise par Certificate.
+     */
+    public function adminUpdate(Certificate $certificate, array $data): Certificate
+    {
+        if (array_key_exists('certificate_type_id', $data)) {
+            $certificate->certificate_type_id = $data['certificate_type_id'];
+        }
+
+        if (array_key_exists('doctor_id', $data)) {
+            $certificate->doctor_id = $data['doctor_id'];
+        }
+
+        $certificate->save();
+
+        if (array_key_exists('data', $data)) {
+            $certificate->update([
+                'data' => array_merge($certificate->data ?? [], $this->normalizeFormData($certificate->fresh(), $data['data'])),
+            ]);
+        }
+
+        return $certificate->fresh();
+    }
+
+    private function normalizeFormData(Certificate $certificate, array $submitted): array
+    {
         $activeFields = $certificate->certificateType->formDefinition->fields()
             ->where('is_active', true)
             ->get()
@@ -61,12 +99,7 @@ class CertificateService
             $normalized[$key] = $field->field_type === FieldType::Boolean ? (bool) $value : $value;
         }
 
-        $certificate->update([
-            'data' => array_merge($certificate->data ?? [], $normalized),
-            'doctor_id' => $certificate->doctor_id ?? $doctor->id,
-        ]);
-
-        return $certificate->fresh();
+        return $normalized;
     }
 
     /**

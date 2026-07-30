@@ -4,6 +4,7 @@ namespace Modules\Certificate\Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Certificate\Enums\CertificateStatus;
 use Modules\Certificate\Enums\PaymentStatus;
 use Modules\Certificate\Models\Certificate;
 use Modules\Certificate\Models\CertificateType;
@@ -320,5 +321,80 @@ class CertificateWorkflowTest extends TestCase
         $response->assertOk();
         $this->assertCount(1, $response->json('data'));
         $this->assertSame($certificate->id, $response->json('data.0.id'));
+    }
+
+    /**
+     * Le superadmin peut tout corriger en un seul appel — y compris sur un
+     * certificat deja finalise (numero deja emis) : patient (repercute sur
+     * le vrai dossier), type, medecin assigne et diagnostic.
+     */
+    public function test_superadmin_can_edit_everything_on_a_finalized_certificate(): void
+    {
+        $type = $this->santeType();
+        $otherType = $this->santeType();
+        $patient = Patient::factory()->create(['first_name' => 'Jean', 'last_name' => 'Baptiste']);
+        $originalDoctor = $this->userWithRole('doctor');
+        $newDoctor = $this->userWithRole('doctor');
+        $certificate = Certificate::factory()->create([
+            'patient_id' => $patient->id,
+            'certificate_type_id' => $type->id,
+            'doctor_id' => $originalDoctor->id,
+            'status' => CertificateStatus::Finalized,
+            'payment_status' => PaymentStatus::Paid,
+            'certificate_number' => 'CS-000001',
+            'data' => ['outcome' => 'sain'],
+        ]);
+        $superadmin = $this->userWithRole('superadmin');
+
+        $response = $this->actingAs($superadmin, 'sanctum')->putJson("/api/v1/certificates/{$certificate->id}/manage", [
+            'patient' => ['first_name' => 'Jeanne', 'residence' => 'Delmas'],
+            'certificate_type_id' => $otherType->id,
+            'doctor_id' => $newDoctor->id,
+            'data' => ['outcome' => 'presente_signes', 'sign_contagieux' => true],
+        ]);
+
+        $response->assertOk();
+        $this->assertSame('Jeanne Baptiste', $response->json('data.patient_name'));
+        $this->assertSame($newDoctor->name, $response->json('data.doctor_name'));
+        $this->assertSame($otherType->id, $response->json('data.certificate_type_id'));
+        $this->assertSame('presente_signes', $response->json('data.form_data.outcome'));
+        $this->assertTrue($response->json('data.form_data.sign_contagieux'));
+
+        $this->assertDatabaseHas('patients', ['id' => $patient->id, 'first_name' => 'Jeanne', 'residence' => 'Delmas']);
+        $this->assertDatabaseHas('certificates', [
+            'id' => $certificate->id,
+            'certificate_type_id' => $otherType->id,
+            'doctor_id' => $newDoctor->id,
+            'status' => 'finalized',
+        ]);
+    }
+
+    /**
+     * @dataProvider nonSuperadminRoles
+     */
+    public function test_certificate_manage_endpoint_is_forbidden_outside_superadmin(string $role): void
+    {
+        $certificate = Certificate::factory()->create();
+        $user = $this->userWithRole($role);
+
+        $this->actingAs($user, 'sanctum')
+            ->putJson("/api/v1/certificates/{$certificate->id}/manage", ['data' => []])
+            ->assertStatus(403);
+    }
+
+    public static function nonSuperadminRoles(): array
+    {
+        return [['admin'], ['it'], ['doctor'], ['reception']];
+    }
+
+    public function test_certificate_manage_rejects_a_doctor_id_that_is_not_a_doctor(): void
+    {
+        $certificate = Certificate::factory()->create();
+        $superadmin = $this->userWithRole('superadmin');
+        $reception = $this->userWithRole('reception');
+
+        $this->actingAs($superadmin, 'sanctum')
+            ->putJson("/api/v1/certificates/{$certificate->id}/manage", ['doctor_id' => $reception->id])
+            ->assertStatus(422);
     }
 }
