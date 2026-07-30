@@ -67,35 +67,45 @@ describe('ReceptionPage', () => {
 
   it('shows a validation error when submitting without a patient/type', async () => {
     renderPage()
+    await userEvent.click(screen.getByText('Patient existant'))
     await waitFor(() => expect(screen.getByText('Enregistrer la visite')).toBeInTheDocument())
     await userEvent.click(screen.getByText('Enregistrer la visite'))
     expect(screen.getByText('Sélectionnez un patient et un type de certificat.')).toBeInTheDocument()
   })
 
-  it('pre-selects the certificate type and pre-checks payment received by default', async () => {
+  it('defaults to the new-patient form, with "Nouveau patient" on the left', async () => {
     renderPage()
-    await waitFor(() => expect(screen.getByLabelText('Type de certificat')).toHaveValue('1'))
-    expect(screen.getByLabelText('Paiement reçu maintenant')).toBeChecked()
+    const newPatientButton = await screen.findByText('Nouveau patient')
+    const existingPatientButton = screen.getByText('Patient existant')
+    expect(newPatientButton.compareDocumentPosition(existingPatientButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByLabelText('Prénom')).toBeInTheDocument()
   })
 
-  it('registers a visit with mark_paid, using the pre-filled type and checkbox', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { data: { ...visit, payment_status: 'paid' } } })
+  it('pre-selects the certificate type by default', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByLabelText('Type de certificat')).toHaveValue('1'))
+  })
+
+  it('does not show a payment checkbox — the reception always collects payment before registering', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByLabelText('Prénom')).toBeInTheDocument())
+    expect(screen.queryByText('Paiement reçu maintenant')).not.toBeInTheDocument()
+  })
+
+  it('registers a new patient and their visit in a single click', async () => {
     renderPage()
 
     await waitFor(() => expect(screen.getByText('Certificat de santé — 500 G')).toBeInTheDocument())
     await waitFor(() => expect(screen.getByLabelText('Type de certificat')).toHaveValue('1'))
-    expect(screen.getByLabelText('Paiement reçu maintenant')).toBeChecked()
 
-    // Simule la selection d'un patient sans passer par l'autocomplete reel.
-    await userEvent.click(screen.getByText('Nouveau patient'))
     await userEvent.type(screen.getByLabelText('Prénom'), 'Jean')
     await userEvent.type(screen.getByLabelText('Nom'), 'Baptiste')
 
-    vi.mocked(api.post).mockResolvedValueOnce({ data: { patient: { id: 1, first_name: 'Jean', last_name: 'Baptiste', full_name: 'Jean Baptiste' }, potential_duplicates: [] } })
-    await userEvent.click(screen.getByText('Créer le patient'))
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { patient: { id: 1, first_name: 'Jean', last_name: 'Baptiste', full_name: 'Jean Baptiste' }, potential_duplicates: [] } })
+      .mockResolvedValueOnce({ data: { data: { ...visit, payment_status: 'paid' } } })
 
-    await waitFor(() => expect(screen.getByText(/Patient sélectionné/)).toBeInTheDocument())
-    await userEvent.click(screen.getByText('Enregistrer la visite'))
+    await userEvent.click(screen.getByText('Créer le patient et enregistrer la visite'))
 
     await waitFor(() =>
       expect(api.post).toHaveBeenCalledWith('/visits', {
@@ -104,38 +114,72 @@ describe('ReceptionPage', () => {
         mark_paid: true,
       }),
     )
+    expect(api.post).toHaveBeenCalledWith('/patients', {
+      first_name: 'Jean',
+      last_name: 'Baptiste',
+      sex: null,
+      date_of_birth: null,
+      residence: null,
+    })
   })
 
-  it('shows a progress bar while registering a visit', async () => {
-    let resolvePost!: (value: { data: { data: Certificate } }) => void
-    vi.mocked(api.post).mockImplementation(
-      () => new Promise((resolve) => { resolvePost = resolve }),
-    )
+  it('keeps the created patient selected if visit registration fails, to allow a retry without duplicating the patient', async () => {
     renderPage()
 
-    await userEvent.click(screen.getByText('Nouveau patient'))
+    await userEvent.type(screen.getByLabelText('Prénom'), 'Jean')
+    await userEvent.type(screen.getByLabelText('Nom'), 'Baptiste')
+
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { patient: { id: 1, first_name: 'Jean', last_name: 'Baptiste', full_name: 'Jean Baptiste' }, potential_duplicates: [] } })
+      .mockRejectedValueOnce({ response: { data: { message: 'Erreur serveur' } } })
+
+    await userEvent.click(screen.getByText('Créer le patient et enregistrer la visite'))
+
+    await waitFor(() => expect(screen.getByText(/Patient sélectionné/)).toBeInTheDocument())
+    expect(screen.getByText('Enregistrer la visite')).toBeInTheDocument()
+
+    vi.mocked(api.post).mockResolvedValueOnce({ data: { data: { ...visit, payment_status: 'paid' } } })
+    await userEvent.click(screen.getByText('Enregistrer la visite'))
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenLastCalledWith('/visits', {
+        patient_id: 1,
+        certificate_type_id: 1,
+        mark_paid: true,
+      }),
+    )
+    expect(vi.mocked(api.post).mock.calls.filter(([url]) => url === '/patients')).toHaveLength(1)
+  })
+
+  it('shows a progress bar while registering a new patient and their visit', async () => {
+    renderPage()
+
     await userEvent.type(screen.getByLabelText('Prénom'), 'Jean')
     await userEvent.type(screen.getByLabelText('Nom'), 'Baptiste')
 
     let resolvePatientPost!: (value: unknown) => void
-    vi.mocked(api.post).mockImplementationOnce(() => new Promise((resolve) => { resolvePatientPost = resolve }))
-    await userEvent.click(screen.getByText('Créer le patient'))
-    expect(screen.getByRole('progressbar', { name: 'Enregistrement du patient...' })).toBeInTheDocument()
+    let resolveVisitPost!: (value: { data: { data: Certificate } }) => void
+    vi.mocked(api.post)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolvePatientPost = resolve }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveVisitPost = resolve }))
+
+    await userEvent.click(screen.getByText('Créer le patient et enregistrer la visite'))
+    expect(screen.getByRole('progressbar', { name: 'Création du patient et enregistrement de la visite...' })).toBeInTheDocument()
+
     resolvePatientPost({ data: { patient: { id: 1, first_name: 'Jean', last_name: 'Baptiste', full_name: 'Jean Baptiste' }, potential_duplicates: [] } })
+    await waitFor(() => expect(screen.getByRole('progressbar', { name: 'Enregistrement de la visite...' })).toBeInTheDocument())
 
-    await waitFor(() => expect(screen.getByText(/Patient sélectionné/)).toBeInTheDocument())
-    await userEvent.click(screen.getByText('Enregistrer la visite'))
-
-    expect(screen.getByRole('progressbar', { name: 'Enregistrement de la visite...' })).toBeInTheDocument()
-    resolvePost({ data: { data: { ...visit, payment_status: 'paid' } } })
+    resolveVisitPost({ data: { data: { ...visit, payment_status: 'paid' } } })
 
     await waitFor(() => expect(screen.queryByRole('progressbar')).not.toBeInTheDocument())
   })
 
-  it('switches to the new-patient form', async () => {
+  it('switches to the existing-patient search', async () => {
     renderPage()
-    await userEvent.click(screen.getByText('Nouveau patient'))
     expect(screen.getByLabelText('Prénom')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('Patient existant'))
+    expect(screen.queryByLabelText('Prénom')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Rechercher un patient (nom, prénom...)')).toBeInTheDocument()
   })
 
   it('shows a print button for finalized visits when the user has certificate.print', async () => {

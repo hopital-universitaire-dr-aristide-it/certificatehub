@@ -12,7 +12,7 @@ import { Select, Label, FieldError } from '../../components/ui/Field'
 import { PdfModal } from '../../components/ui/PdfModal'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { PatientAutocomplete } from '../../components/patients/PatientAutocomplete'
-import { NewPatientForm } from '../../components/patients/NewPatientForm'
+import { NewPatientForm, emptyNewPatientValues, type NewPatientValues } from '../../components/patients/NewPatientForm'
 import type { Certificate, CertificateType, Patient, PatientSummary, PaginatedResponse } from '../../types'
 
 function money(amount: number) {
@@ -22,10 +22,11 @@ function money(amount: number) {
 export function ReceptionPage() {
   const queryClient = useQueryClient()
   const { hasPermission } = useAuth()
-  const [mode, setMode] = useState<'search' | 'create'>('search')
+  const [mode, setMode] = useState<'search' | 'create'>('create')
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | Patient | null>(null)
+  const [newPatient, setNewPatient] = useState<NewPatientValues>(emptyNewPatientValues)
+  const [duplicates, setDuplicates] = useState<PatientSummary[]>([])
   const [certificateTypeId, setCertificateTypeId] = useState<string>('')
-  const [markPaidAtRegistration, setMarkPaidAtRegistration] = useState(true)
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -61,16 +62,40 @@ export function ReceptionPage() {
 
   const registerVisit = useMutation({
     mutationFn: async () => {
+      let patientId: number
+
+      if (mode === 'create') {
+        const { data } = await api.post<{ patient: Patient; potential_duplicates: PatientSummary[] }>('/patients', {
+          first_name: newPatient.firstName,
+          last_name: newPatient.lastName,
+          sex: newPatient.sex || null,
+          date_of_birth: newPatient.dateOfBirth || null,
+          residence: newPatient.residence || null,
+        })
+        // Le patient existe deja en base a ce stade : si la creation de la visite
+        // echoue juste apres, on bascule sur le patient cree pour permettre une
+        // nouvelle tentative sans risquer de le dupliquer.
+        setDuplicates(data.potential_duplicates)
+        setSelectedPatient(data.patient)
+        setMode('search')
+        patientId = data.patient.id
+      } else {
+        patientId = selectedPatient!.id
+      }
+
+      // L'accueil encaisse toujours avant d'enregistrer le patient/la visite —
+      // le paiement est donc systematiquement marque recu des la creation.
       const { data } = await api.post<{ data: Certificate }>('/visits', {
-        patient_id: selectedPatient!.id,
+        patient_id: patientId,
         certificate_type_id: Number(certificateTypeId),
-        mark_paid: markPaidAtRegistration,
+        mark_paid: true,
       })
       return data.data
     },
     onSuccess: () => {
       setSelectedPatient(null)
-      setMarkPaidAtRegistration(true)
+      setNewPatient(emptyNewPatientValues)
+      setDuplicates([])
       queryClient.invalidateQueries({ queryKey: ['visits'] })
     },
     onError: (err) => setRegisterError(apiErrorMessage(err)),
@@ -86,7 +111,16 @@ export function ReceptionPage() {
 
   function handleRegister() {
     setRegisterError(null)
-    if (!selectedPatient || !certificateTypeId) {
+    if (!certificateTypeId) {
+      setRegisterError('Sélectionnez un patient et un type de certificat.')
+      return
+    }
+    if (mode === 'create') {
+      if (!newPatient.firstName.trim() || !newPatient.lastName.trim()) {
+        setRegisterError('Renseignez le prénom et le nom du patient.')
+        return
+      }
+    } else if (!selectedPatient) {
       setRegisterError('Sélectionnez un patient et un type de certificat.')
       return
     }
@@ -160,21 +194,21 @@ export function ReceptionPage() {
       <Card>
         <CardHeader title="Enregistrer une visite" subtitle="Sélectionner un patient existant ou en créer un nouveau" />
         <div className="mb-4 flex gap-2">
-          <Button variant={mode === 'search' ? 'primary' : 'secondary'} onClick={() => setMode('search')}>
-            Patient existant
-          </Button>
           <Button variant={mode === 'create' ? 'primary' : 'secondary'} onClick={() => setMode('create')}>
             Nouveau patient
+          </Button>
+          <Button variant={mode === 'search' ? 'primary' : 'secondary'} onClick={() => setMode('search')}>
+            Patient existant
           </Button>
         </div>
 
         {mode === 'search' ? (
           <PatientAutocomplete onSelect={setSelectedPatient} />
         ) : (
-          <NewPatientForm onCreated={(patient) => { setSelectedPatient(patient); setMode('search') }} />
+          <NewPatientForm values={newPatient} onChange={setNewPatient} duplicates={duplicates} />
         )}
 
-        {selectedPatient && (
+        {mode === 'search' && selectedPatient && (
           <p className="mt-3 text-sm">
             Patient sélectionné : <Badge tone="blue">{selectedPatient.full_name}</Badge>
           </p>
@@ -192,22 +226,20 @@ export function ReceptionPage() {
           </Select>
         </div>
 
-        <label className="mt-4 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
-            checked={markPaidAtRegistration}
-            onChange={(e) => setMarkPaidAtRegistration(e.target.checked)}
-          />
-          Paiement reçu maintenant
-        </label>
-
         <FieldError message={registerError ?? undefined} />
 
         <Button className="mt-4" onClick={handleRegister} disabled={registerVisit.isPending}>
-          {registerVisit.isPending ? 'Enregistrement...' : 'Enregistrer la visite'}
+          {registerVisit.isPending
+            ? 'Enregistrement...'
+            : mode === 'create'
+              ? 'Créer le patient et enregistrer la visite'
+              : 'Enregistrer la visite'}
         </Button>
-        {registerVisit.isPending && <ProgressBar label="Enregistrement de la visite..." />}
+        {registerVisit.isPending && (
+          <ProgressBar
+            label={mode === 'create' ? 'Création du patient et enregistrement de la visite...' : 'Enregistrement de la visite...'}
+          />
+        )}
       </Card>
 
       <Card>
