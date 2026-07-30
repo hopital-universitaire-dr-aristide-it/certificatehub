@@ -22,24 +22,30 @@ export function PatientsPage() {
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | Patient | null>(null)
   const [editingPatientId, setEditingPatientId] = useState<number | null>(null)
   const [view, setView] = useState<View>('list')
+  const [listPage, setListPage] = useState(1)
+  const [trashPage, setTrashPage] = useState(1)
 
-  const { data: patients, isError: isListError } = useQuery({
-    queryKey: ['patients'],
+  const { data: listResponse, isError: isListError } = useQuery({
+    queryKey: ['patients', listPage],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<Patient>>('/patients')
-      return data.data
+      const { data } = await api.get<PaginatedResponse<Patient>>('/patients', { params: { page: listPage } })
+      return data
     },
     enabled: view === 'list',
   })
+  const patients = listResponse?.data
+  const listMeta = listResponse?.meta
 
-  const { data: trashedPatients, isError: isTrashError } = useQuery({
-    queryKey: ['patients-trashed'],
+  const { data: trashedResponse, isError: isTrashError } = useQuery({
+    queryKey: ['patients-trashed', trashPage],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<Patient>>('/patients/trashed')
-      return data.data
+      const { data } = await api.get<PaginatedResponse<Patient>>('/patients/trashed', { params: { page: trashPage } })
+      return data
     },
     enabled: view === 'trash',
   })
+  const trashedPatients = trashedResponse?.data
+  const trashMeta = trashedResponse?.meta
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['patients'] })
@@ -132,6 +138,21 @@ export function PatientsPage() {
                 </tbody>
               </table>
             )}
+            {listMeta && listMeta.last_page > 1 && (
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span className="text-neutral-500">
+                  Page {listMeta.current_page} sur {listMeta.last_page} ({listMeta.total} au total)
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setListPage((p) => p - 1)} disabled={listMeta.current_page <= 1}>
+                    Précédent
+                  </Button>
+                  <Button variant="secondary" onClick={() => setListPage((p) => p + 1)} disabled={listMeta.current_page >= listMeta.last_page}>
+                    Suivant
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -173,6 +194,21 @@ export function PatientsPage() {
             ))}
             {!isTrashError && trashedPatients?.length === 0 && (
               <p className="py-4 text-center text-sm text-neutral-500">Corbeille vide.</p>
+            )}
+            {trashMeta && trashMeta.last_page > 1 && (
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span className="text-neutral-500">
+                  Page {trashMeta.current_page} sur {trashMeta.last_page} ({trashMeta.total} au total)
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setTrashPage((p) => p - 1)} disabled={trashMeta.current_page <= 1}>
+                    Précédent
+                  </Button>
+                  <Button variant="secondary" onClick={() => setTrashPage((p) => p + 1)} disabled={trashMeta.current_page >= trashMeta.last_page}>
+                    Suivant
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         )}

@@ -59,7 +59,49 @@ describe('PatientsPage', () => {
     renderPage()
 
     await waitFor(() => expect(screen.getByText('Bertin Louissaint')).toBeInTheDocument())
-    expect(api.get).toHaveBeenCalledWith('/patients')
+    expect(api.get).toHaveBeenCalledWith('/patients', { params: { page: 1 } })
+  })
+
+  it('shows pagination controls in the list view and fetches the next page', async () => {
+    vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { page?: number } }) => {
+      if (url === '/patients') {
+        const page = config?.params?.page ?? 1
+        return Promise.resolve({
+          data: { data: [{ ...listedPatient, id: page }], meta: { current_page: page, last_page: 2, per_page: 20, total: 21 } },
+        })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Page 1 sur 2 (21 au total)')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Précédent' })).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients', { params: { page: 2 } }))
+    await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
+  })
+
+  it('shows pagination controls in the trash view and fetches the next page', async () => {
+    vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { page?: number } }) => {
+      if (url === '/patients/trashed') {
+        const page = config?.params?.page ?? 1
+        return Promise.resolve({
+          data: { data: [{ ...trashedPatient, id: page }], meta: { current_page: page, last_page: 2, per_page: 20, total: 21 } },
+        })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await userEvent.click(screen.getByText('Corbeille'))
+    await waitFor(() => expect(screen.getByText('Page 1 sur 2 (21 au total)')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/patients/trashed', { params: { page: 2 } }))
+    await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
   })
 
   it('searches, selects and soft-deletes a patient after confirming', async () => {

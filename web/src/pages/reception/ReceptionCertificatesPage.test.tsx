@@ -62,9 +62,69 @@ describe('ReceptionCertificatesPage', () => {
 
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith('/visits', {
-        params: { patient_name: 'Jean', doctor_name: 'Aristide', date_from: undefined, date_to: undefined },
+        params: { patient_name: 'Jean', doctor_name: 'Aristide', date_from: undefined, date_to: undefined, page: 1 },
       }),
     )
+  })
+
+  it('resets to page 1 when a filter changes', async () => {
+    vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { page?: number } }) => {
+      if (url === '/visits') {
+        const page = config?.params?.page ?? 1
+        return Promise.resolve({
+          data: { data: [cert({ id: page })], meta: { current_page: page, last_page: 2, per_page: 20, total: 21 } },
+        })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Page 1 sur 2 (21 au total)')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+    await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
+
+    await userEvent.type(screen.getByLabelText('Nom du patient'), 'Jean')
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: { patient_name: 'Jean', doctor_name: undefined, date_from: undefined, date_to: undefined, page: 1 },
+      }),
+    )
+  })
+
+  it('shows pagination controls and fetches the next page when results exceed one page', async () => {
+    vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { page?: number } }) => {
+      if (url === '/visits') {
+        const page = config?.params?.page ?? 1
+        return Promise.resolve({
+          data: { data: [cert({ id: page })], meta: { current_page: page, last_page: 2, per_page: 20, total: 21 } },
+        })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Page 1 sur 2 (21 au total)')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Précédent' })).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: { patient_name: undefined, doctor_name: undefined, date_from: undefined, date_to: undefined, page: 2 },
+      }),
+    )
+    await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
+  })
+
+  it('hides pagination controls when everything fits on one page', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: [cert()], meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 } },
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Suivant' })).not.toBeInTheDocument()
   })
 
   it('prints a finalized certificate in the inline modal', async () => {

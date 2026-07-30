@@ -6,6 +6,7 @@ import { usePdfPreview } from '../../lib/usePdfPreview'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { useAuth } from '../../lib/auth'
 import { Card, CardHeader } from '../../components/ui/Card'
+import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
 import { Input, Label, FieldError } from '../../components/ui/Field'
@@ -24,14 +25,15 @@ export function ReceptionCertificatesPage() {
   const [doctorName, setDoctorName] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const pdfPreview = usePdfPreview()
 
   const debouncedPatientName = useDebouncedValue(patientName, 300)
   const debouncedDoctorName = useDebouncedValue(doctorName, 300)
 
-  const { data: certificates, isError } = useQuery({
-    queryKey: ['reception-certificates', debouncedPatientName, debouncedDoctorName, dateFrom, dateTo],
+  const { data: response, isError } = useQuery({
+    queryKey: ['reception-certificates', debouncedPatientName, debouncedDoctorName, dateFrom, dateTo, page],
     queryFn: async () => {
       const { data } = await api.get<PaginatedResponse<Certificate>>('/visits', {
         params: {
@@ -39,11 +41,25 @@ export function ReceptionCertificatesPage() {
           doctor_name: debouncedDoctorName || undefined,
           date_from: dateFrom || undefined,
           date_to: dateTo || undefined,
+          page,
         },
       })
-      return data.data
+      return data
     },
   })
+  const certificates = response?.data
+  const meta = response?.meta
+
+  function handleFilterChange<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value)
+      setPage(1)
+    }
+  }
+  const handlePatientNameChange = handleFilterChange(setPatientName)
+  const handleDoctorNameChange = handleFilterChange(setDoctorName)
+  const handleDateFromChange = handleFilterChange(setDateFrom)
+  const handleDateToChange = handleFilterChange(setDateTo)
 
   async function handlePrint(certificateId: number) {
     setError(null)
@@ -71,19 +87,19 @@ export function ReceptionCertificatesPage() {
         <div className="mb-4 grid grid-cols-4 gap-3">
           <div>
             <Label htmlFor="filter-patient-name">Nom du patient</Label>
-            <Input id="filter-patient-name" value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Rechercher..." />
+            <Input id="filter-patient-name" value={patientName} onChange={(e) => handlePatientNameChange(e.target.value)} placeholder="Rechercher..." />
           </div>
           <div>
             <Label htmlFor="filter-doctor-name">Médecin</Label>
-            <Input id="filter-doctor-name" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} placeholder="Rechercher..." />
+            <Input id="filter-doctor-name" value={doctorName} onChange={(e) => handleDoctorNameChange(e.target.value)} placeholder="Rechercher..." />
           </div>
           <div>
             <Label htmlFor="filter-from">Du</Label>
-            <Input id="filter-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <Input id="filter-from" type="date" value={dateFrom} onChange={(e) => handleDateFromChange(e.target.value)} />
           </div>
           <div>
             <Label htmlFor="filter-to">Au</Label>
-            <Input id="filter-to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            <Input id="filter-to" type="date" value={dateTo} onChange={(e) => handleDateToChange(e.target.value)} />
           </div>
         </div>
 
@@ -145,6 +161,22 @@ export function ReceptionCertificatesPage() {
             </table>
           )}
         </div>
+
+        {meta && meta.last_page > 1 && (
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <span className="text-neutral-500">
+              Page {meta.current_page} sur {meta.last_page} ({meta.total} au total)
+            </span>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setPage((p) => p - 1)} disabled={meta.current_page <= 1}>
+                Précédent
+              </Button>
+              <Button variant="secondary" onClick={() => setPage((p) => p + 1)} disabled={meta.current_page >= meta.last_page}>
+                Suivant
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
       {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={pdfPreview.close} />}
     </div>

@@ -62,9 +62,58 @@ describe('CertificatesPage', () => {
 
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith('/visits', {
-        params: { patient_name: 'Jean', date_from: undefined, date_to: undefined },
+        params: { patient_name: 'Jean', date_from: undefined, date_to: undefined, page: 1 },
       }),
     )
+  })
+
+  it('shows pagination controls and fetches the next page when results exceed one page', async () => {
+    vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { page?: number } }) => {
+      if (url === '/visits') {
+        const page = config?.params?.page ?? 1
+        return Promise.resolve({
+          data: { data: [cert({ id: page })], meta: { current_page: page, last_page: 2, per_page: 20, total: 21 } },
+        })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Page 1 sur 2 (21 au total)')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Précédent' })).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: { patient_name: undefined, date_from: undefined, date_to: undefined, page: 2 },
+      }),
+    )
+    await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
+  })
+
+  it('shows pagination controls in the trash view and fetches the next page', async () => {
+    vi.mocked(api.get).mockImplementation((url: string, config?: { params?: { page?: number } }) => {
+      if (url === '/visits') return Promise.resolve({ data: { data: [] } })
+      if (url === '/certificates/trashed') {
+        const page = config?.params?.page ?? 1
+        return Promise.resolve({
+          data: { data: [cert({ id: page, deleted_at: new Date().toISOString() })], meta: { current_page: page, last_page: 2, per_page: 20, total: 21 } },
+        })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await userEvent.click(screen.getByText('Corbeille'))
+    await waitFor(() => expect(screen.getByText('Page 1 sur 2 (21 au total)')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Suivant' }))
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/certificates/trashed', { params: { page: 2 } }),
+    )
+    await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
   })
 
   it('cancels a certificate after confirming', async () => {

@@ -33,6 +33,8 @@ export function CertificatesPage() {
   const [patientName, setPatientName] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [activePage, setActivePage] = useState(1)
+  const [trashPage, setTrashPage] = useState(1)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [isPrintingSelection, setIsPrintingSelection] = useState(false)
@@ -41,29 +43,46 @@ export function CertificatesPage() {
 
   const debouncedName = useDebouncedValue(patientName, 300)
 
-  const { data: certificates, isError } = useQuery({
-    queryKey: ['certificates-oversight', debouncedName, dateFrom, dateTo],
+  const { data: activeResponse, isError } = useQuery({
+    queryKey: ['certificates-oversight', debouncedName, dateFrom, dateTo, activePage],
     queryFn: async () => {
       const { data } = await api.get<PaginatedResponse<Certificate>>('/visits', {
         params: {
           patient_name: debouncedName || undefined,
           date_from: dateFrom || undefined,
           date_to: dateTo || undefined,
+          page: activePage,
         },
       })
-      return data.data
+      return data
     },
     enabled: view === 'active',
   })
+  const certificates = activeResponse?.data
+  const meta = activeResponse?.meta
 
-  const { data: trashedCertificates, isError: isTrashError } = useQuery({
-    queryKey: ['certificates-trashed'],
+  function handleFilterChange<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value)
+      setActivePage(1)
+    }
+  }
+  const handlePatientNameChange = handleFilterChange(setPatientName)
+  const handleDateFromChange = handleFilterChange(setDateFrom)
+  const handleDateToChange = handleFilterChange(setDateTo)
+
+  const { data: trashedResponse, isError: isTrashError } = useQuery({
+    queryKey: ['certificates-trashed', trashPage],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<Certificate>>('/certificates/trashed')
-      return data.data
+      const { data } = await api.get<PaginatedResponse<Certificate>>('/certificates/trashed', {
+        params: { page: trashPage },
+      })
+      return data
     },
     enabled: view === 'trash' && canRestoreCertificate,
   })
+  const trashedCertificates = trashedResponse?.data
+  const trashMeta = trashedResponse?.meta
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['certificates-oversight'] })
@@ -169,15 +188,15 @@ export function CertificatesPage() {
             <div className="mb-4 grid grid-cols-3 gap-3">
               <div>
                 <Label htmlFor="filter-name">Nom du patient</Label>
-                <Input id="filter-name" value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Rechercher..." />
+                <Input id="filter-name" value={patientName} onChange={(e) => handlePatientNameChange(e.target.value)} placeholder="Rechercher..." />
               </div>
               <div>
                 <Label htmlFor="filter-from">Du</Label>
-                <Input id="filter-from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                <Input id="filter-from" type="date" value={dateFrom} onChange={(e) => handleDateFromChange(e.target.value)} />
               </div>
               <div>
                 <Label htmlFor="filter-to">Au</Label>
-                <Input id="filter-to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                <Input id="filter-to" type="date" value={dateTo} onChange={(e) => handleDateToChange(e.target.value)} />
               </div>
             </div>
 
@@ -293,6 +312,22 @@ export function CertificatesPage() {
                 </table>
               )}
             </div>
+
+            {meta && meta.last_page > 1 && (
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span className="text-neutral-500">
+                  Page {meta.current_page} sur {meta.last_page} ({meta.total} au total)
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setActivePage((p) => p - 1)} disabled={meta.current_page <= 1}>
+                    Précédent
+                  </Button>
+                  <Button variant="secondary" onClick={() => setActivePage((p) => p + 1)} disabled={meta.current_page >= meta.last_page}>
+                    Suivant
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -316,6 +351,21 @@ export function CertificatesPage() {
             ))}
             {!isTrashError && trashedCertificates?.length === 0 && (
               <p className="py-4 text-center text-sm text-neutral-500">Corbeille vide.</p>
+            )}
+            {trashMeta && trashMeta.last_page > 1 && (
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span className="text-neutral-500">
+                  Page {trashMeta.current_page} sur {trashMeta.last_page} ({trashMeta.total} au total)
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setTrashPage((p) => p - 1)} disabled={trashMeta.current_page <= 1}>
+                    Précédent
+                  </Button>
+                  <Button variant="secondary" onClick={() => setTrashPage((p) => p + 1)} disabled={trashMeta.current_page >= trashMeta.last_page}>
+                    Suivant
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         )}

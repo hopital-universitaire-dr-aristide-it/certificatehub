@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
@@ -7,13 +8,17 @@ import { Badge } from '../../components/ui/Badge'
 import type { Certificate, PaginatedResponse } from '../../types'
 
 export function MyCertificatesPage() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['certificates-mine'],
+  const [page, setPage] = useState(1)
+
+  const { data: response, isLoading } = useQuery({
+    queryKey: ['certificates-mine', page],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<Certificate>>('/certificates/mine')
-      return data.data
+      const { data } = await api.get<PaginatedResponse<Certificate>>('/certificates/mine', { params: { page } })
+      return data
     },
   })
+  const data = response?.data
+  const meta = response?.meta
 
   return (
     <Card>
@@ -59,6 +64,22 @@ export function MyCertificatesPage() {
           </tbody>
         </table>
       </div>
+
+      {meta && meta.last_page > 1 && (
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <span className="text-neutral-500">
+            Page {meta.current_page} sur {meta.last_page} ({meta.total} au total)
+          </span>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setPage((p) => p - 1)} disabled={meta.current_page <= 1}>
+              Précédent
+            </Button>
+            <Button variant="secondary" onClick={() => setPage((p) => p + 1)} disabled={meta.current_page >= meta.last_page}>
+              Suivant
+            </Button>
+          </div>
+        </div>
+      )}
     </Card>
   )
 }
