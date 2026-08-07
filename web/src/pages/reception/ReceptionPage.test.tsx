@@ -237,6 +237,35 @@ describe('ReceptionPage', () => {
     await waitFor(() => expect(screen.queryByTitle('Document PDF')).not.toBeInTheDocument())
   })
 
+  it('marks a multi-selected batch of visits as printed in one action', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/visits') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { ...visit, id: 10, status: 'finalized', payment_status: 'paid' },
+              { ...visit, id: 11, status: 'finalized', payment_status: 'paid' },
+            ],
+          },
+        })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    vi.mocked(api.post).mockResolvedValue({ data: { data: { ...visit, status: 'finalized', payment_status: 'paid', manually_printed_at: new Date().toISOString() } } })
+    renderPage(['certificate.create', 'certificate.mark_paid', 'certificate.print'])
+
+    const table = await screen.findByRole('table')
+    await waitFor(() => expect(within(table).getAllByRole('checkbox').length).toBe(2))
+    await userEvent.click(within(table).getAllByRole('checkbox')[0])
+    await userEvent.click(within(table).getAllByRole('checkbox')[1])
+
+    await userEvent.click(screen.getByText('Marquer la sélection imprimée (2)'))
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/visits/10/mark-printed'))
+    expect(api.post).toHaveBeenCalledWith('/visits/11/mark-printed')
+  })
+
   it('shows the registration date and time for each visit', async () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())

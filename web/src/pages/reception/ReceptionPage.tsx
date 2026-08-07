@@ -140,6 +140,20 @@ export function ReceptionPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['visits'] }),
   })
 
+  // Contrairement a l'impression (une modale PDF a la fois, donc en
+  // sequence), marquer imprime n'affiche rien a l'ecran — les requetes
+  // peuvent partir en parallele.
+  const markSelectionPrinted = useMutation({
+    mutationFn: async () => {
+      await Promise.all([...selected].map((id) => api.post(`/visits/${id}/mark-printed`)))
+    },
+    onSuccess: () => {
+      setSelected(new Set())
+      queryClient.invalidateQueries({ queryKey: ['visits'] })
+    },
+    onError: (err) => setPrintError(apiErrorMessage(err)),
+  })
+
   function handleRegister() {
     setRegisterError(null)
     if (!certificateTypeId) {
@@ -314,9 +328,16 @@ export function ReceptionPage() {
         </div>
 
         {canPrint && (
-          <div className="mb-3">
+          <div className="mb-3 flex gap-2">
             <Button variant="secondary" disabled={selected.size === 0 || isPrintingSelection} onClick={printSelection}>
               {isPrintingSelection ? 'Impression...' : `Imprimer la sélection (${selected.size})`}
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={selected.size === 0 || markSelectionPrinted.isPending}
+              onClick={() => markSelectionPrinted.mutate()}
+            >
+              {markSelectionPrinted.isPending ? 'Marquage...' : `Marquer la sélection imprimée (${selected.size})`}
             </Button>
           </div>
         )}
