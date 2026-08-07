@@ -42,6 +42,20 @@ describe('AppLayout', () => {
     expect(screen.getByText('Consulter certificats')).toBeInTheDocument()
   })
 
+  it('shows the printed-certificates link only with certificate.print', () => {
+    seedUser(makeUser({ roles: ['reception'], permissions: ['certificate.create'] }))
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<p>home</p>} />
+        </Route>
+      </Routes>,
+    )
+
+    expect(screen.queryByText('Certificats imprimés')).not.toBeInTheDocument()
+  })
+
   it('logs out when the button is clicked', async () => {
     seedUser(makeUser({ permissions: ['report.view'] }))
 

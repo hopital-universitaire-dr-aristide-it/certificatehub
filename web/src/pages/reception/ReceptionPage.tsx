@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Banknote, Printer, Receipt } from 'lucide-react'
+import { Banknote, PackageCheck, Printer, Receipt } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { usePdfPreview } from '../../lib/usePdfPreview'
@@ -66,6 +66,9 @@ export function ReceptionPage() {
           date_from: visitsDateFrom || undefined,
           date_to: visitsDateTo || undefined,
           page: visitsPage,
+          // Une fois marque imprime manuellement, le certificat quitte cette
+          // liste de travail et rejoint la page dediee "Certificats imprimés".
+          printed: 0,
         },
       })
       return data
@@ -124,6 +127,14 @@ export function ReceptionPage() {
   const markPaid = useMutation({
     mutationFn: async (certificateId: number) => {
       const { data } = await api.post<{ data: Certificate }>(`/visits/${certificateId}/mark-paid`)
+      return data.data
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['visits'] }),
+  })
+
+  const markPrinted = useMutation({
+    mutationFn: async (certificateId: number) => {
+      const { data } = await api.post<{ data: Certificate }>(`/visits/${certificateId}/mark-printed`)
       return data.data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['visits'] }),
@@ -364,6 +375,14 @@ export function ReceptionPage() {
                       )}
                       {visit.status === 'finalized' && canPrint && (
                         <IconButton icon={Printer} label="Imprimer" onClick={() => handlePrint(visit.id)} />
+                      )}
+                      {visit.status === 'finalized' && canPrint && (
+                        <IconButton
+                          icon={PackageCheck}
+                          label="Marquer imprimé"
+                          onClick={() => markPrinted.mutate(visit.id)}
+                          disabled={markPrinted.isPending}
+                        />
                       )}
                     </div>
                   </td>

@@ -4,6 +4,7 @@ namespace Modules\Reception\Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Certificate\Enums\CertificateStatus;
 use Modules\Certificate\Models\Certificate;
 use Modules\Certificate\Models\CertificateType;
 use Modules\Patient\Models\Patient;
@@ -181,5 +182,123 @@ class ReceptionManagementTest extends TestCase
         $this->assertCount(1, $response->json('data'));
         $this->assertSame($match->id, $response->json('data.0.id'));
         $this->assertSame('Dr Aristide', $response->json('data.0.doctor_name'));
+    }
+
+    public function test_reception_can_mark_a_finalized_certificate_printed(): void
+    {
+        $certificate = Certificate::factory()->create(['status' => CertificateStatus::Finalized]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->postJson("/api/v1/visits/{$certificate->id}/mark-printed");
+
+        $response->assertOk();
+        $this->assertNotNull($response->json('data.manually_printed_at'));
+    }
+
+    public function test_marking_printed_rejects_a_non_finalized_certificate(): void
+    {
+        $certificate = Certificate::factory()->create(['status' => CertificateStatus::Draft]);
+        $reception = $this->userWithRole('reception');
+
+        $this->actingAs($reception, 'sanctum')
+            ->postJson("/api/v1/visits/{$certificate->id}/mark-printed")
+            ->assertStatus(422);
+    }
+
+    public function test_reception_can_unmark_a_printed_certificate(): void
+    {
+        $certificate = Certificate::factory()->create([
+            'status' => CertificateStatus::Finalized,
+            'manually_printed_at' => now(),
+        ]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->postJson("/api/v1/visits/{$certificate->id}/unmark-printed");
+
+        $response->assertOk();
+        $this->assertNull($response->json('data.manually_printed_at'));
+    }
+
+    public function test_doctor_cannot_mark_a_certificate_printed(): void
+    {
+        $certificate = Certificate::factory()->create(['status' => CertificateStatus::Finalized]);
+        $doctor = $this->userWithRole('doctor');
+
+        $this->actingAs($doctor, 'sanctum')
+            ->postJson("/api/v1/visits/{$certificate->id}/mark-printed")
+            ->assertStatus(403);
+    }
+
+    public function test_doctor_cannot_unmark_a_printed_certificate(): void
+    {
+        $certificate = Certificate::factory()->create([
+            'status' => CertificateStatus::Finalized,
+            'manually_printed_at' => now(),
+        ]);
+        $doctor = $this->userWithRole('doctor');
+
+        $this->actingAs($doctor, 'sanctum')
+            ->postJson("/api/v1/visits/{$certificate->id}/unmark-printed")
+            ->assertStatus(403);
+    }
+
+    public function test_visits_can_be_filtered_to_only_printed_certificates(): void
+    {
+        Certificate::factory()->count(2)->create();
+        Certificate::factory()->create(['manually_printed_at' => now()]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits?printed=1');
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+    }
+
+    public function test_visits_can_be_filtered_to_only_unprinted_certificates(): void
+    {
+        Certificate::factory()->count(2)->create();
+        Certificate::factory()->create(['manually_printed_at' => now()]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits?printed=0');
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
+    }
+
+    /**
+     * Regression : callers existants (oversight admin, "Consulter
+     * certificats") n'envoient jamais ce parametre — ils doivent continuer a
+     * tout voir, imprime ou non.
+     */
+    public function test_visits_are_unfiltered_by_printed_status_when_the_param_is_omitted(): void
+    {
+        Certificate::factory()->count(2)->create();
+        Certificate::factory()->create(['manually_printed_at' => now()]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits');
+
+        $response->assertOk();
+        $this->assertCount(3, $response->json('data'));
+    }
+
+    /**
+     * Bout en bout : reproduit le comportement reel de "Visites du jour",
+     * qui interroge toujours /visits?printed=0 — un certificat marque
+     * imprime doit en disparaitre immediatement.
+     */
+    public function test_marking_a_certificate_printed_removes_it_from_the_unprinted_visits_list(): void
+    {
+        $certificate = Certificate::factory()->create(['status' => CertificateStatus::Finalized]);
+        $reception = $this->userWithRole('reception');
+
+        $before = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits?printed=0');
+        $this->assertCount(1, $before->json('data'));
+
+        $this->actingAs($reception, 'sanctum')->postJson("/api/v1/visits/{$certificate->id}/mark-printed")->assertOk();
+
+        $after = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits?printed=0');
+        $this->assertCount(0, $after->json('data'));
     }
 }

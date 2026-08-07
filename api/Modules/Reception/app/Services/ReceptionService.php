@@ -57,4 +57,29 @@ class ReceptionService
 
         return $certificate->fresh();
     }
+
+    /**
+     * Marque manuellement le certificat comme remis au patient — distinct de
+     * CertificatePrintLog (journal automatique de chaque clic "Imprimer").
+     * Nécessite un certificat finalisé : rien n'a pu être imprimé sinon.
+     */
+    public function markPrinted(Certificate $certificate): Certificate
+    {
+        if ($certificate->status !== CertificateStatus::Finalized) {
+            throw ValidationException::withMessages([
+                'status' => 'Ce certificat ne peut pas être marqué imprimé tant qu\'il n\'est pas finalisé.',
+            ]);
+        }
+
+        $certificate->update(['manually_printed_at' => now()]);
+
+        return $certificate->fresh();
+    }
+
+    public function unmarkPrinted(Certificate $certificate): Certificate
+    {
+        $certificate->update(['manually_printed_at' => null]);
+
+        return $certificate->fresh();
+    }
 }

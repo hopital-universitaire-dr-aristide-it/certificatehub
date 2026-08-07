@@ -251,7 +251,7 @@ describe('ReceptionPage', () => {
 
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith('/visits', {
-        params: { patient_name: 'Jean', date_from: undefined, date_to: undefined, page: 1 },
+        params: { patient_name: 'Jean', date_from: undefined, date_to: undefined, page: 1, printed: 0 },
       }),
     )
   })
@@ -265,7 +265,7 @@ describe('ReceptionPage', () => {
 
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith('/visits', {
-        params: { patient_name: undefined, date_from: '2026-07-01', date_to: '2026-07-30', page: 1 },
+        params: { patient_name: undefined, date_from: '2026-07-01', date_to: '2026-07-30', page: 1, printed: 0 },
       }),
     )
   })
@@ -293,7 +293,7 @@ describe('ReceptionPage', () => {
 
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith('/visits', {
-        params: { patient_name: undefined, date_from: undefined, date_to: undefined, page: 2 },
+        params: { patient_name: undefined, date_from: undefined, date_to: undefined, page: 2, printed: 0 },
       }),
     )
     await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
@@ -309,5 +309,47 @@ describe('ReceptionPage', () => {
 
     await waitFor(() => expect(screen.getByText('Prêt à imprimer')).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Imprimer' })).not.toBeInTheDocument()
+  })
+
+  it('requests only unprinted visits', async () => {
+    renderPage()
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: { patient_name: undefined, date_from: undefined, date_to: undefined, page: 1, printed: 0 },
+      }),
+    )
+  })
+
+  it('marks a finalized visit as printed, removing it from the list on refetch', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/visits') return Promise.resolve({ data: { data: [{ ...visit, status: 'finalized', payment_status: 'paid' }] } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    vi.mocked(api.post).mockResolvedValue({ data: { data: { ...visit, status: 'finalized', payment_status: 'paid', manually_printed_at: new Date().toISOString() } } })
+    renderPage(['certificate.create', 'certificate.mark_paid', 'certificate.print'])
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Marquer imprimé' })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Marquer imprimé' }))
+
+    expect(api.post).toHaveBeenCalledWith('/visits/10/mark-printed')
+  })
+
+  it('hides the mark-printed button for users without certificate.print', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/visits') return Promise.resolve({ data: { data: [{ ...visit, status: 'finalized', payment_status: 'paid' }] } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage(['certificate.create', 'certificate.mark_paid'])
+
+    await waitFor(() => expect(screen.getByText('Prêt à imprimer')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Marquer imprimé' })).not.toBeInTheDocument()
+  })
+
+  it('hides the mark-printed button for a draft visit', async () => {
+    renderPage(['certificate.create', 'certificate.mark_paid', 'certificate.print'])
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Marquer imprimé' })).not.toBeInTheDocument()
   })
 })

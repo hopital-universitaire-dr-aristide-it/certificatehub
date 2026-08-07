@@ -15,6 +15,7 @@ export function AppLayout() {
     { to: '/dashboard', label: 'Tableau de bord', show: hasPermission('report.view') },
     { to: '/reception', label: 'Accueil', show: hasPermission('certificate.create') },
     { to: '/reception/certificates', label: 'Consulter certificats', show: hasPermission('certificate.create') },
+    { to: '/reception/printed', label: 'Certificats imprimés', show: hasPermission('certificate.print') },
     { to: '/doctor', label: 'File d\'attente médecin', show: hasPermission('certificate.finalize') },
     { to: '/doctor/mine', label: 'Mes certificats', show: hasPermission('certificate.view_own') },
     { to: '/admin/form-hub', label: 'Formulaires', show: hasPermission('form_field.manage') },

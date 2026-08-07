@@ -56,6 +56,7 @@ export interface Certificate {
   payment_status: PaymentStatus
   paid_at: string | null
   finalized_at: string | null
+  manually_printed_at?: string | null
   created_at: string
   deleted_at: string | null
   form_data?: Record<string, unknown>

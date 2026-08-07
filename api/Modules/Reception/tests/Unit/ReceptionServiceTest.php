@@ -5,7 +5,9 @@ namespace Modules\Reception\Tests\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Modules\Certificate\Enums\CertificateStatus;
 use Modules\Certificate\Enums\PaymentStatus;
+use Modules\Certificate\Models\Certificate;
 use Modules\Certificate\Models\CertificateType;
 use Modules\Patient\Models\Patient;
 use Modules\Reception\Services\ReceptionService;
@@ -63,5 +65,35 @@ class ReceptionServiceTest extends TestCase
         $paid = $service->markPaid($certificate);
 
         $this->assertSame(PaymentStatus::Paid, $paid->payment_status);
+    }
+
+    public function test_mark_printed_sets_manually_printed_at_on_a_finalized_certificate(): void
+    {
+        $certificate = Certificate::factory()->create(['status' => CertificateStatus::Finalized]);
+
+        $printed = (new ReceptionService)->markPrinted($certificate);
+
+        $this->assertNotNull($printed->manually_printed_at);
+    }
+
+    public function test_mark_printed_rejects_a_non_finalized_certificate(): void
+    {
+        $certificate = Certificate::factory()->create(['status' => CertificateStatus::Draft]);
+
+        $this->expectException(ValidationException::class);
+
+        (new ReceptionService)->markPrinted($certificate);
+    }
+
+    public function test_unmark_printed_clears_manually_printed_at(): void
+    {
+        $certificate = Certificate::factory()->create([
+            'status' => CertificateStatus::Finalized,
+            'manually_printed_at' => now(),
+        ]);
+
+        $unmarked = (new ReceptionService)->unmarkPrinted($certificate);
+
+        $this->assertNull($unmarked->manually_printed_at);
     }
 }

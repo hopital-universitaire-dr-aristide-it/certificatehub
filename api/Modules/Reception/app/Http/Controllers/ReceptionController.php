@@ -51,6 +51,14 @@ class ReceptionController extends Controller
             $query->whereDate('created_at', '<=', $request->date('date_to'));
         }
 
+        if ($request->filled('printed')) {
+            $query->when(
+                $request->boolean('printed'),
+                fn ($q) => $q->whereNotNull('manually_printed_at'),
+                fn ($q) => $q->whereNull('manually_printed_at'),
+            );
+        }
+
         return CertificateResource::collection($query->paginate(20));
     }
 
@@ -78,5 +86,15 @@ class ReceptionController extends Controller
     public function cancelPayment(Certificate $certificate)
     {
         return new CertificateResource($this->receptionService->cancelPayment($certificate)->load('patient'));
+    }
+
+    public function markPrinted(Certificate $certificate)
+    {
+        return new CertificateResource($this->receptionService->markPrinted($certificate)->load('patient'));
+    }
+
+    public function unmarkPrinted(Certificate $certificate)
+    {
+        return new CertificateResource($this->receptionService->unmarkPrinted($certificate)->load('patient'));
     }
 }

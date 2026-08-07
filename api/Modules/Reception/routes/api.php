@@ -8,4 +8,6 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     Route::post('visits', [ReceptionController::class, 'store'])->middleware('can:certificate.create');
     Route::post('visits/{certificate}/mark-paid', [ReceptionController::class, 'markPaid'])->middleware('can:certificate.mark_paid');
     Route::post('visits/{certificate}/cancel-payment', [ReceptionController::class, 'cancelPayment'])->middleware('can:certificate.cancel_payment');
+    Route::post('visits/{certificate}/mark-printed', [ReceptionController::class, 'markPrinted'])->middleware('can:certificate.print');
+    Route::post('visits/{certificate}/unmark-printed', [ReceptionController::class, 'unmarkPrinted'])->middleware('can:certificate.print');
 });

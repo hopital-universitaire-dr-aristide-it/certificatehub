@@ -28,6 +28,7 @@ class Certificate extends Model
         'payment_status',
         'paid_at',
         'finalized_at',
+        'manually_printed_at',
     ];
 
     protected function casts(): array
@@ -39,6 +40,7 @@ class Certificate extends Model
             'payment_status' => PaymentStatus::class,
             'paid_at' => 'datetime',
             'finalized_at' => 'datetime',
+            'manually_printed_at' => 'datetime',
         ];
     }
 
