@@ -1,0 +1,8 @@
+# Contexte separe (`docker build ... ./web`) : le .dockerignore racine ne
+# s'applique pas ici. Evite d'envoyer node_modules/dist de l'hote (souvent
+# installes pour un OS/arch different du conteneur) dans le contexte de
+# build, qui les copierait ensuite par-dessus ceux fraichement installes par
+# `npm ci` a l'etape suivante (COPY . . apres npm ci).
+node_modules
+dist
+.git
