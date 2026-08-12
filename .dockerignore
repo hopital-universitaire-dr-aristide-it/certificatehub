@@ -1,0 +1,27 @@
+# Empeche les artefacts generes localement (bind mount dev sous Windows) de
+# fuiter dans le contexte de build de l'image de production. Sans ce fichier,
+# api/bootstrap/cache/*.php genere en mode dev (composer install sans
+# --no-dev) survit a la commande `composer install --no-dev --no-scripts` de
+# l'etape production (qui ne regenere jamais la decouverte de packages), et
+# laisse une reference perimee vers un provider dev-only (ex: laravel/pail)
+# absent de vendor/ une fois --no-dev applique -> config:cache echoue avec
+# "Class ... not found".
+api/vendor
+api/node_modules
+api/bootstrap/cache/*.php
+api/storage/framework/cache/*
+api/storage/framework/sessions/*
+api/storage/framework/testing/*
+api/storage/framework/views/*
+api/storage/logs/*
+api/.env
+api/.env.*
+!api/.env.example
+
+web/node_modules
+web/dist
+
+.git
+.github
+.dockerignore
+docker-compose*.yml
