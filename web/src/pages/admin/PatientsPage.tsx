@@ -7,10 +7,10 @@ import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
-import { FieldError } from '../../components/ui/Field'
+import { FieldError, Label, Select } from '../../components/ui/Field'
 import { PatientAutocomplete } from '../../components/patients/PatientAutocomplete'
 import { PatientEditModal } from '../../components/patients/PatientEditModal'
-import type { Patient, PatientSummary, PaginatedResponse } from '../../types'
+import type { ImportBatch, Patient, PatientSummary, PaginatedResponse } from '../../types'
 
 type View = 'list' | 'search' | 'trash'
 
@@ -24,11 +24,22 @@ export function PatientsPage() {
   const [view, setView] = useState<View>('list')
   const [listPage, setListPage] = useState(1)
   const [trashPage, setTrashPage] = useState(1)
+  const [importTag, setImportTag] = useState('')
+
+  const { data: importBatches } = useQuery({
+    queryKey: ['import-batches'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: ImportBatch[] }>('/import-batches')
+      return data.data
+    },
+  })
 
   const { data: listResponse, isError: isListError } = useQuery({
-    queryKey: ['patients', listPage],
+    queryKey: ['patients', listPage, importTag],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<Patient>>('/patients', { params: { page: listPage } })
+      const { data } = await api.get<PaginatedResponse<Patient>>('/patients', {
+        params: { page: listPage, import_tag: importTag || undefined },
+      })
       return data
     },
     enabled: view === 'list',
@@ -101,6 +112,26 @@ export function PatientsPage() {
 
         {view === 'list' && (
           <div className="overflow-x-auto">
+            {importBatches && importBatches.length > 0 && (
+              <div className="mb-4 max-w-xs">
+                <Label htmlFor="patients-import-tag">Étiquette d'import</Label>
+                <Select
+                  id="patients-import-tag"
+                  value={importTag}
+                  onChange={(e) => {
+                    setImportTag(e.target.value)
+                    setListPage(1)
+                  }}
+                >
+                  <option value="">Toutes</option>
+                  {importBatches.map((batch) => (
+                    <option key={batch.id} value={batch.tag}>
+                      {batch.tag}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
             {isListError && <p className="py-4 text-center text-sm text-red-600">Impossible de charger la liste des patients.</p>}
             {!isListError && (
               <table className="w-full text-left text-sm">
@@ -109,6 +140,7 @@ export function PatientsPage() {
                     <th className="py-2 pr-4">Nom</th>
                     <th className="py-2 pr-4">Date de naissance</th>
                     <th className="py-2 pr-4">Résidence</th>
+                    <th className="py-2 pr-4">Étiquette</th>
                     <th className="py-2 pr-4"></th>
                   </tr>
                 </thead>
@@ -118,6 +150,9 @@ export function PatientsPage() {
                       <td className="py-2 pr-4">{patient.full_name}</td>
                       <td className="py-2 pr-4">{patient.date_of_birth ?? '—'}</td>
                       <td className="py-2 pr-4">{patient.residence ?? '—'}</td>
+                      <td className="py-2 pr-4">
+                        {patient.import_tag && <Badge tone="neutral">{patient.import_tag}</Badge>}
+                      </td>
                       <td className="py-2 pr-4 text-right">
                         <div className="flex justify-end gap-1">
                           {canEditPatient && (
@@ -130,7 +165,7 @@ export function PatientsPage() {
                   ))}
                   {patients?.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="py-4 text-center text-neutral-500">
+                      <td colSpan={5} className="py-4 text-center text-neutral-500">
                         Aucun patient enregistré.
                       </td>
                     </tr>

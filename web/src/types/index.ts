@@ -14,6 +14,7 @@ export interface User {
   email: string
   is_active: boolean
   roles: Role[]
+  import_tag?: string | null
   created_at: string
   deleted_at: string | null
 }
@@ -28,6 +29,7 @@ export interface Patient {
   age: number | null
   residence: string | null
   created_by: number
+  import_tag?: string | null
   created_at: string
   deleted_at: string | null
 }
@@ -57,6 +59,7 @@ export interface Certificate {
   paid_at: string | null
   finalized_at: string | null
   manually_printed_at?: string | null
+  import_tag?: string | null
   created_at: string
   deleted_at: string | null
   form_data?: Record<string, unknown>
@@ -130,6 +133,72 @@ export interface PaginatedResponse<T> {
     prev: string | null
     next: string | null
   }
+}
+
+export interface ImportBatch {
+  id: number
+  tag: string
+  patients_count?: number
+  certificates_count?: number
+  doctors_count?: number
+  created_at: string
+}
+
+export interface ImportPatientRow {
+  row_id: string
+  source_file: string
+  first_name: string
+  last_name: string
+  sex: 'M' | 'F' | null
+  date_of_birth: string | null
+  age: number | null
+  residence: string | null
+  exact_duplicate_patient_id: number | null
+  potential_duplicates: { id: number; full_name: string; date_of_birth: string | null; residence: string | null }[]
+}
+
+export interface ImportDoctorRow {
+  row_id: string
+  name: string
+  normalized_name: string
+  matched_user_id: number | null
+  matched_user_name: string | null
+  action: 'existing' | 'create'
+}
+
+export interface ImportCertificateRow {
+  row_id: string
+  source_file: string
+  patient_row_id: string
+  doctor_row_id: string | null
+  exam_date: string | null
+  form_data: {
+    outcome: 'sain' | 'presente_signes' | string
+    sign_contagieux?: boolean
+    sign_chronique?: boolean
+    sign_debilitant?: boolean
+    sign_trouble_mental?: boolean
+    recommandation?: string | null
+  }
+}
+
+export interface ImportSkippedRow {
+  source_file: string
+  reason: string
+}
+
+export interface ImportParseResult {
+  patients: ImportPatientRow[]
+  doctors: ImportDoctorRow[]
+  certificates: ImportCertificateRow[]
+  skipped: ImportSkippedRow[]
+}
+
+export interface ImportConfirmResult {
+  batch: ImportBatch
+  doctors_created: number
+  patients_created: number
+  certificates_created: number
 }
 
 export interface ReportSummary {

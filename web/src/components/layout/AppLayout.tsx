@@ -6,6 +6,7 @@ interface NavItem {
   to: string
   label: string
   show: boolean
+  section?: string
 }
 
 export function AppLayout() {
@@ -24,8 +25,11 @@ export function AppLayout() {
     { to: '/admin/patients', label: 'Patients', show: hasPermission('patient.delete') },
     { to: '/admin/certificates', label: 'Certificats', show: hasPermission('certificate.delete') },
     { to: '/admin/settings', label: 'Paramètres', show: hasPermission('settings.manage') },
+    { to: '/admin/import', label: 'Importer JSON', show: hasPermission('import.manage'), section: 'Administration avancée' },
     { to: '/it/system', label: 'Système', show: hasRole('it') },
   ]
+
+  const visibleItems = navItems.filter((item) => item.show)
 
   return (
     <div className="flex min-h-svh">
@@ -35,24 +39,33 @@ export function AppLayout() {
           <p className="text-xs text-neutral-500 dark:text-neutral-400">Hôpital Universitaire Dr. Aristide</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
-          {navItems
-            .filter((item) => item.show)
-            .map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end
-                className={({ isActive }) =>
-                  `rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+          {visibleItems.map((item, index) => {
+            const previousSection = index > 0 ? visibleItems[index - 1].section : undefined
+            const showSectionHeader = item.section && item.section !== previousSection
+
+            return (
+              <div key={item.to}>
+                {showSectionHeader && (
+                  <p className="mb-1 mt-4 px-3 text-xs font-semibold uppercase tracking-wide text-neutral-400 first:mt-0 dark:text-neutral-500">
+                    {item.section}
+                  </p>
+                )}
+                <NavLink
+                  to={item.to}
+                  end
+                  className={({ isActive }) =>
+                    `block rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-600 text-white'
+                        : 'text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                    }`
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              </div>
+            )
+          })}
         </nav>
         <div className="mt-auto border-t border-neutral-200 pt-4 dark:border-neutral-800">
           <p className="px-2 text-sm font-medium">{user?.name}</p>

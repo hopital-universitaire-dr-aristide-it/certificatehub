@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Certificate\Database\Factories\CertificateFactory;
 use Modules\Certificate\Enums\CertificateStatus;
 use Modules\Certificate\Enums\PaymentStatus;
+use Modules\Import\Models\ImportBatch;
 use Modules\Patient\Models\Patient;
 
 class Certificate extends Model
@@ -29,6 +30,7 @@ class Certificate extends Model
         'paid_at',
         'finalized_at',
         'manually_printed_at',
+        'import_batch_id',
     ];
 
     protected function casts(): array
@@ -67,5 +69,10 @@ class Certificate extends Model
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'doctor_id');
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
     }
 }

@@ -15,9 +15,16 @@ class PatientController extends Controller
 {
     public function __construct(private readonly PatientService $patientService) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        return PatientResource::collection(Patient::orderByDesc('created_at')->paginate(20));
+        $query = Patient::with('importBatch')->orderByDesc('created_at');
+
+        if ($request->filled('import_tag')) {
+            $tag = $request->string('import_tag')->toString();
+            $query->whereHas('importBatch', fn ($batchQuery) => $batchQuery->where('tag', $tag));
+        }
+
+        return PatientResource::collection($query->paginate(20));
     }
 
     public function store(StorePatientRequest $request)

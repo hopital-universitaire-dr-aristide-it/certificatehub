@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
 import { Input, Label, Select, FieldError } from '../../components/ui/Field'
-import type { Role, User } from '../../types'
+import type { ImportBatch, Role, User } from '../../types'
 
 const ROLES: Role[] = ['reception', 'doctor', 'it', 'admin', 'superadmin']
 
@@ -18,11 +18,20 @@ export function UsersPage() {
   const isSuperadmin = hasRole('superadmin')
   const [error, setError] = useState<string | null>(null)
   const [showTrashed, setShowTrashed] = useState(false)
+  const [importTag, setImportTag] = useState('')
+
+  const { data: importBatches } = useQuery({
+    queryKey: ['import-batches'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: ImportBatch[] }>('/import-batches')
+      return data.data
+    },
+  })
 
   const { data: users } = useQuery({
-    queryKey: ['users'],
+    queryKey: ['users', importTag],
     queryFn: async () => {
-      const { data } = await api.get<{ data: User[] }>('/users')
+      const { data } = await api.get<{ data: User[] }>('/users', { params: { import_tag: importTag || undefined } })
       return data.data
     },
   })
@@ -102,6 +111,21 @@ export function UsersPage() {
           }
         />
         <FieldError message={error ?? undefined} />
+
+        {!showTrashed && importBatches && importBatches.length > 0 && (
+          <div className="mb-4 max-w-xs">
+            <Label htmlFor="users-import-tag">Étiquette d'import</Label>
+            <Select id="users-import-tag" value={importTag} onChange={(e) => setImportTag(e.target.value)}>
+              <option value="">Toutes</option>
+              {importBatches.map((batch) => (
+                <option key={batch.id} value={batch.tag}>
+                  {batch.tag}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
+
         <div className="space-y-2">
           {!showTrashed &&
             users?.map((user) => (
@@ -183,6 +207,7 @@ function UserRow({
         <p className="text-xs text-neutral-500">{user.email}</p>
       </div>
       <Badge tone={user.is_active ? 'green' : 'red'}>{user.is_active ? 'Actif' : 'Désactivé'}</Badge>
+      {user.import_tag && <Badge tone="neutral">{user.import_tag}</Badge>}
       <Select value={user.roles[0] ?? ''} onChange={(e) => onAssignRole(e.target.value)} className="w-40">
         {ROLES.map((role) => (
           <option key={role} value={role}>

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Scout\Searchable;
+use Modules\Import\Models\ImportBatch;
 use Modules\Patient\Database\Factories\PatientFactory;
 
 class Patient extends Model
@@ -23,6 +24,7 @@ class Patient extends Model
         'age',
         'residence',
         'created_by',
+        'import_batch_id',
     ];
 
     protected function casts(): array
@@ -40,6 +42,11 @@ class Patient extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
     }
 
     public function getFullNameAttribute(): string

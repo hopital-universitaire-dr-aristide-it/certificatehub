@@ -20,7 +20,7 @@ class ReceptionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Certificate::with(['patient', 'doctor'])->orderByDesc('created_at');
+        $query = Certificate::with(['patient', 'doctor', 'importBatch'])->orderByDesc('created_at');
 
         if ($request->filled('payment_status')) {
             $query->where('payment_status', $request->string('payment_status')->toString());
@@ -57,6 +57,11 @@ class ReceptionController extends Controller
                 fn ($q) => $q->whereNotNull('manually_printed_at'),
                 fn ($q) => $q->whereNull('manually_printed_at'),
             );
+        }
+
+        if ($request->filled('import_tag')) {
+            $tag = $request->string('import_tag')->toString();
+            $query->whereHas('importBatch', fn ($batchQuery) => $batchQuery->where('tag', $tag));
         }
 
         return CertificateResource::collection($query->paginate(20));

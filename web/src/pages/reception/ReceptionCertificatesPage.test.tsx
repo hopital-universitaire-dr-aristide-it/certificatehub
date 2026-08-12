@@ -157,4 +157,32 @@ describe('ReceptionCertificatesPage', () => {
 
     await waitFor(() => expect(screen.getByText('Aucun certificat trouvé.')).toBeInTheDocument())
   })
+
+  it('shows the import tag badge and filters visits by the selected tag', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/import-batches') return Promise.resolve({ data: { data: [{ id: 1, tag: 'Lot Août 2026' }] } })
+      if (url === '/visits') return Promise.resolve({ data: { data: [cert({ import_tag: 'Lot Août 2026' })] } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    // "Lot Août 2026" appears twice: once as the row badge, once as the filter's <option>.
+    expect(screen.getAllByText('Lot Août 2026')).toHaveLength(2)
+
+    await userEvent.selectOptions(screen.getByLabelText("Étiquette d'import"), 'Lot Août 2026')
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: {
+          patient_name: undefined,
+          doctor_name: undefined,
+          date_from: undefined,
+          date_to: undefined,
+          import_tag: 'Lot Août 2026',
+          page: 1,
+        },
+      }),
+    )
+  })
 })

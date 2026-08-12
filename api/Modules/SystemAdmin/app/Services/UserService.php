@@ -8,9 +8,15 @@ use Illuminate\Support\Facades\Hash;
 
 class UserService
 {
-    public function list(): Collection
+    public function list(?string $importTag = null): Collection
     {
-        return User::with('roles')->orderBy('name')->get();
+        $query = User::with(['roles', 'importBatch'])->orderBy('name');
+
+        if ($importTag) {
+            $query->whereHas('importBatch', fn ($batchQuery) => $batchQuery->where('tag', $importTag));
+        }
+
+        return $query->get();
     }
 
     public function create(array $data): User

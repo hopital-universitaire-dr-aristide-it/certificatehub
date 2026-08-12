@@ -56,6 +56,36 @@ describe('AppLayout', () => {
     expect(screen.queryByText('Certificats imprimés')).not.toBeInTheDocument()
   })
 
+  it('shows the JSON import link under its own section only with import.manage', () => {
+    seedUser(makeUser({ roles: ['superadmin'], permissions: ['import.manage'] }))
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<p>home</p>} />
+        </Route>
+      </Routes>,
+    )
+
+    expect(screen.getByText('Importer JSON')).toBeInTheDocument()
+    expect(screen.getByText('Administration avancée')).toBeInTheDocument()
+  })
+
+  it('hides the JSON import link without import.manage', () => {
+    seedUser(makeUser({ roles: ['reception'], permissions: ['certificate.create'] }))
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<p>home</p>} />
+        </Route>
+      </Routes>,
+    )
+
+    expect(screen.queryByText('Importer JSON')).not.toBeInTheDocument()
+    expect(screen.queryByText('Administration avancée')).not.toBeInTheDocument()
+  })
+
   it('logs out when the button is clicked', async () => {
     seedUser(makeUser({ permissions: ['report.view'] }))
 

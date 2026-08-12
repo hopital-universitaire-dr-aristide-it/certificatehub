@@ -15,6 +15,7 @@ import { UsersPage } from './pages/admin/UsersPage'
 import { PatientsPage } from './pages/admin/PatientsPage'
 import { CertificatesPage } from './pages/admin/CertificatesPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
+import { ImportPage } from './pages/admin/ImportPage'
 import { SystemHealthPage } from './pages/it/SystemHealthPage'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
 
@@ -72,6 +73,10 @@ function App() {
 
             <Route element={<ProtectedRoute permission="settings.manage" />}>
               <Route path="admin/settings" element={<SettingsPage />} />
+            </Route>
+
+            <Route element={<ProtectedRoute permission="import.manage" />}>
+              <Route path="admin/import" element={<ImportPage />} />
             </Route>
 
             <Route element={<ProtectedRoute role="it" />}>

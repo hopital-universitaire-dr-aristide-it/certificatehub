@@ -33,6 +33,7 @@
             <directory>Modules/Reception/app</directory>
             <directory>Modules/Certificate/app</directory>
             <directory>Modules/Reports/app</directory>
+            <directory>Modules/Import/app</directory>
         </include>
     </source>
     <!--

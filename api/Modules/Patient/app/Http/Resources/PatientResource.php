@@ -19,6 +19,7 @@ class PatientResource extends JsonResource
             'age' => $this->age,
             'residence' => $this->residence,
             'created_by' => $this->created_by,
+            'import_tag' => $this->whenLoaded('importBatch', fn () => $this->importBatch?->tag),
             'created_at' => $this->created_at,
             'deleted_at' => $this->deleted_at,
         ];

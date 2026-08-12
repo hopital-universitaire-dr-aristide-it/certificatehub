@@ -16,9 +16,11 @@ class UserController extends Controller
 {
     public function __construct(private readonly UserService $userService) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        return UserResource::collection($this->userService->list());
+        $importTag = $request->filled('import_tag') ? $request->string('import_tag')->toString() : null;
+
+        return UserResource::collection($this->userService->list($importTag));
     }
 
     public function store(StoreUserRequest $request)

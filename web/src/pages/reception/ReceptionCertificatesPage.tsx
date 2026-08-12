@@ -9,9 +9,9 @@ import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
-import { Input, Label, FieldError } from '../../components/ui/Field'
+import { Input, Label, Select, FieldError } from '../../components/ui/Field'
 import { PdfModal } from '../../components/ui/PdfModal'
-import type { Certificate, PaginatedResponse } from '../../types'
+import type { Certificate, ImportBatch, PaginatedResponse } from '../../types'
 
 function money(amount: number) {
   return new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', maximumFractionDigits: 0 }).format(amount)
@@ -25,6 +25,7 @@ export function ReceptionCertificatesPage() {
   const [doctorName, setDoctorName] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [importTag, setImportTag] = useState('')
   const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const pdfPreview = usePdfPreview()
@@ -32,8 +33,16 @@ export function ReceptionCertificatesPage() {
   const debouncedPatientName = useDebouncedValue(patientName, 300)
   const debouncedDoctorName = useDebouncedValue(doctorName, 300)
 
+  const { data: importBatches } = useQuery({
+    queryKey: ['import-batches'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: ImportBatch[] }>('/import-batches')
+      return data.data
+    },
+  })
+
   const { data: response, isError } = useQuery({
-    queryKey: ['reception-certificates', debouncedPatientName, debouncedDoctorName, dateFrom, dateTo, page],
+    queryKey: ['reception-certificates', debouncedPatientName, debouncedDoctorName, dateFrom, dateTo, importTag, page],
     queryFn: async () => {
       const { data } = await api.get<PaginatedResponse<Certificate>>('/visits', {
         params: {
@@ -41,6 +50,7 @@ export function ReceptionCertificatesPage() {
           doctor_name: debouncedDoctorName || undefined,
           date_from: dateFrom || undefined,
           date_to: dateTo || undefined,
+          import_tag: importTag || undefined,
           page,
         },
       })
@@ -60,6 +70,7 @@ export function ReceptionCertificatesPage() {
   const handleDoctorNameChange = handleFilterChange(setDoctorName)
   const handleDateFromChange = handleFilterChange(setDateFrom)
   const handleDateToChange = handleFilterChange(setDateTo)
+  const handleImportTagChange = handleFilterChange(setImportTag)
 
   async function handlePrint(certificateId: number) {
     setError(null)
@@ -84,7 +95,7 @@ export function ReceptionCertificatesPage() {
       <Card>
         <CardHeader title="Consulter certificats" subtitle="Rechercher un certificat par patient, médecin ou date" />
 
-        <div className="mb-4 grid grid-cols-4 gap-3">
+        <div className="mb-4 grid grid-cols-5 gap-3">
           <div>
             <Label htmlFor="filter-patient-name">Nom du patient</Label>
             <Input id="filter-patient-name" value={patientName} onChange={(e) => handlePatientNameChange(e.target.value)} placeholder="Rechercher..." />
@@ -100,6 +111,17 @@ export function ReceptionCertificatesPage() {
           <div>
             <Label htmlFor="filter-to">Au</Label>
             <Input id="filter-to" type="date" value={dateTo} onChange={(e) => handleDateToChange(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="filter-import-tag">Étiquette d'import</Label>
+            <Select id="filter-import-tag" value={importTag} onChange={(e) => handleImportTagChange(e.target.value)}>
+              <option value="">Toutes</option>
+              {importBatches?.map((batch) => (
+                <option key={batch.id} value={batch.tag}>
+                  {batch.tag}
+                </option>
+              ))}
+            </Select>
           </div>
         </div>
 
@@ -117,6 +139,7 @@ export function ReceptionCertificatesPage() {
                   <th className="py-2 pr-4">Montant</th>
                   <th className="py-2 pr-4">Paiement</th>
                   <th className="py-2 pr-4">Statut</th>
+                  <th className="py-2 pr-4">Étiquette</th>
                   <th className="py-2 pr-4"></th>
                 </tr>
               </thead>
@@ -137,6 +160,9 @@ export function ReceptionCertificatesPage() {
                       <td className="py-2 pr-4">
                         <Badge tone={isFinalized ? 'blue' : 'neutral'}>{isFinalized ? 'Finalisé' : 'Brouillon'}</Badge>
                       </td>
+                      <td className="py-2 pr-4">
+                        {cert.import_tag && <Badge tone="neutral">{cert.import_tag}</Badge>}
+                      </td>
                       <td className="py-2 pr-4 text-right">
                         <div className="flex justify-end gap-1">
                           {cert.payment_status === 'paid' && canPrint && (
@@ -152,7 +178,7 @@ export function ReceptionCertificatesPage() {
                 })}
                 {certificates?.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-4 text-center text-neutral-500">
+                    <td colSpan={8} className="py-4 text-center text-neutral-500">
                       Aucun certificat trouvé.
                     </td>
                   </tr>

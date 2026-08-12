@@ -15,6 +15,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'is_active' => $this->is_active,
             'roles' => $this->whenLoaded('roles', fn () => $this->roles->pluck('name')),
+            'import_tag' => $this->whenLoaded('importBatch', fn () => $this->importBatch?->tag),
             'created_at' => $this->created_at,
             'deleted_at' => $this->deleted_at,
         ];

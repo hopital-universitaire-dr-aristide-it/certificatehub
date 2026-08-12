@@ -24,6 +24,7 @@ class CertificateResource extends JsonResource
             'paid_at' => $this->paid_at,
             'finalized_at' => $this->finalized_at,
             'manually_printed_at' => $this->manually_printed_at,
+            'import_tag' => $this->whenLoaded('importBatch', fn () => $this->importBatch?->tag),
             'created_at' => $this->created_at,
             'deleted_at' => $this->deleted_at,
             // Nomme "form_data" et non "data" : Laravel desactive silencieusement
