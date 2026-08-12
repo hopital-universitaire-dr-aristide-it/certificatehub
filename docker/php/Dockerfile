@@ -69,10 +69,16 @@ RUN composer install \
     --optimize-autoloader \
     --no-scripts
 
-RUN php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache && \
-    php artisan event:cache
+# Le cache de config n'est PAS construit ici : le vrai .env de production
+# n'existe pas dans ce contexte de build (exclu par .dockerignore, comme il
+# se doit — jamais de secrets dans une image). Le construire ici bake donc
+# une config batie sur des valeurs par defaut (ex: DB_CONNECTION=sqlite),
+# et une fois le cache present Laravel ignore totalement env()/.env au
+# demarrage du vrai conteneur -> DB_CONNECTION reste bloque sur sqlite meme
+# avec les bonnes variables d'environnement de prod, ce qui casse
+# `php artisan migrate` des la premiere migration Postgres-specifique. Voir
+# l'etape "Rafraichir les caches Laravel" de deploy.yml, qui construit ce
+# cache correctement une fois le conteneur demarre avec le vrai .env.
 
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 

@@ -14,9 +14,16 @@ api/storage/framework/sessions/*
 api/storage/framework/testing/*
 api/storage/framework/views/*
 api/storage/logs/*
-api/.env
-api/.env.*
-!api/.env.example
+
+# api/.env N'est PAS exclu : cette app n'a pas d'autre mecanisme pour livrer
+# sa config de prod au conteneur (pas de env_file ni de bind mount pour lui
+# a l'execution, voir docker-compose.yml/app — seule une poignee de
+# variables y sont listees explicitement, DB_CONNECTION n'en fait pas
+# partie). L'exclure casse silencieusement le deploiement : le conteneur
+# demarre sans aucune config reelle et retombe sur les valeurs par defaut
+# de Laravel (ex: DB_CONNECTION=sqlite) au lieu de celles de production.
+# Ce fichier ne quitte de toute facon jamais cette machine (deploy.yml ne
+# fait jamais de `docker push`), donc le bake-in reste local au poste.
 
 web/node_modules
 web/dist
