@@ -268,6 +268,53 @@ class ImportControllerTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_superadmin_can_delete_a_pending_upload(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $upload = $this->createUpload($superadmin);
+
+        $this->actingAs($superadmin, 'sanctum')
+            ->deleteJson("/api/v1/import/uploads/{$upload->id}")
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('import_uploads', ['id' => $upload->id]);
+    }
+
+    public function test_superadmin_cannot_delete_an_already_completed_upload(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $upload = $this->createUpload($superadmin);
+        $upload->update(['completed_by' => $superadmin->id, 'completed_at' => now()]);
+
+        $this->actingAs($superadmin, 'sanctum')
+            ->deleteJson("/api/v1/import/uploads/{$upload->id}")
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('import_uploads', ['id' => $upload->id]);
+    }
+
+    public function test_manager_ext_cannot_delete_an_upload(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $upload = $this->createUpload($superadmin);
+        $managerExt = $this->userWithRole('manager_ext');
+
+        $this->actingAs($managerExt, 'sanctum')
+            ->deleteJson("/api/v1/import/uploads/{$upload->id}")
+            ->assertStatus(403);
+    }
+
+    public function test_reception_cannot_delete_an_upload(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $upload = $this->createUpload($superadmin);
+        $reception = $this->userWithRole('reception');
+
+        $this->actingAs($reception, 'sanctum')
+            ->deleteJson("/api/v1/import/uploads/{$upload->id}")
+            ->assertStatus(403);
+    }
+
     public function test_reception_can_list_import_batches_for_the_filter(): void
     {
         $superadmin = $this->userWithRole('superadmin');

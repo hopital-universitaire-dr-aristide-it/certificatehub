@@ -9,9 +9,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     // "Consulter certificats" sans exposer les actions d'import elles-memes.
     Route::get('import-batches', [ImportController::class, 'batches'])->middleware('can:certificate.view');
 
-    // Depot d'un nouveau JSON — reserve au superadmin.
+    // Depot / suppression d'un JSON — reserve au superadmin. Un import deja
+    // valide ne peut pas etre supprime (voir ImportController::destroy).
     Route::middleware('can:import.manage')->group(function () {
         Route::post('import/uploads', [ImportController::class, 'store']);
+        Route::delete('import/uploads/{upload}', [ImportController::class, 'destroy']);
     });
 
     // Reprise (extraction/apercu/validation) d'un upload deja depose —

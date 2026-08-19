@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Trash2 } from 'lucide-react'
 import { api, apiErrorMessage } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
+import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
 import { Input, Label, Select, Textarea, FieldError } from '../../components/ui/Field'
 import type {
@@ -36,12 +38,27 @@ export function ImportPage() {
   const [certificates, setCertificates] = useState<ImportCertificateRow[]>([])
   const [skipped, setSkipped] = useState<ImportParseResult['skipped']>([])
 
-  const { data: pendingUploads } = useQuery({
-    queryKey: ['import-uploads'],
+  const [viewCompleted, setViewCompleted] = useState(false)
+
+  const { data: uploads } = useQuery({
+    queryKey: ['import-uploads', viewCompleted],
     queryFn: async () => {
-      const { data } = await api.get<{ data: ImportUpload[] }>('/import/uploads')
+      const { data } = await api.get<{ data: ImportUpload[] }>('/import/uploads', {
+        params: { completed: viewCompleted ? 1 : 0 },
+      })
       return data.data
     },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (uploadId: number) => {
+      await api.delete(`/import/uploads/${uploadId}`)
+    },
+    onSuccess: () => {
+      setError(null)
+      queryClient.invalidateQueries({ queryKey: ['import-uploads'] })
+    },
+    onError: (err) => setError(apiErrorMessage(err)),
   })
 
   const { data: doctorUsers } = useQuery({
@@ -233,10 +250,32 @@ export function ImportPage() {
       )}
 
       <Card>
-        <CardHeader
-          title="Imports en attente"
-          subtitle={`${pendingUploads?.length ?? 0} import(s) déposé(s) restant à reprendre`}
-        />
+        <div className="mb-4 flex items-center justify-between">
+          <CardHeader
+            title={viewCompleted ? 'Imports validés' : 'Imports en attente'}
+            subtitle={
+              viewCompleted
+                ? `${uploads?.length ?? 0} import(s) déjà validé(s)`
+                : `${uploads?.length ?? 0} import(s) déposé(s) restant à reprendre`
+            }
+          />
+          <div className="flex gap-1 rounded-lg border border-neutral-200 p-1 dark:border-neutral-800">
+            <button
+              type="button"
+              onClick={() => setViewCompleted(false)}
+              className={`rounded-md px-3 py-1 text-sm ${!viewCompleted ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-neutral-600 dark:text-neutral-400'}`}
+            >
+              En attente
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewCompleted(true)}
+              className={`rounded-md px-3 py-1 text-sm ${viewCompleted ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900' : 'text-neutral-600 dark:text-neutral-400'}`}
+            >
+              Validés
+            </button>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -245,31 +284,59 @@ export function ImportPage() {
                 <th className="py-2 pr-4">Fichier</th>
                 <th className="py-2 pr-4">Déposé par</th>
                 <th className="py-2 pr-4">Date</th>
+                <th className="py-2 pr-4">Statut</th>
                 <th className="py-2 pr-4"></th>
               </tr>
             </thead>
             <tbody>
-              {pendingUploads?.map((u) => (
+              {uploads?.map((u) => (
                 <tr key={u.id} className="border-b border-neutral-100 dark:border-neutral-900">
                   <td className="py-2 pr-4">{u.tag}</td>
                   <td className="py-2 pr-4 text-neutral-500">{u.original_filename ?? '—'}</td>
                   <td className="py-2 pr-4">{u.uploaded_by_name ?? '—'}</td>
                   <td className="py-2 pr-4">{new Date(u.created_at).toLocaleDateString('fr-FR')}</td>
+                  <td className="py-2 pr-4">
+                    {u.completed_at ? (
+                      <Badge tone="green">
+                        Validé le {new Date(u.completed_at).toLocaleDateString('fr-FR')}
+                        {u.completed_by_name ? ` par ${u.completed_by_name}` : ''}
+                      </Badge>
+                    ) : (
+                      <Badge tone="amber">En attente</Badge>
+                    )}
+                  </td>
                   <td className="py-2 pr-4 text-right">
-                    <Button
-                      variant="secondary"
-                      disabled={parseMutation.isPending}
-                      onClick={() => parseMutation.mutate(u)}
-                    >
-                      Continuer
-                    </Button>
+                    {!u.completed_at && (
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          disabled={parseMutation.isPending}
+                          onClick={() => parseMutation.mutate(u)}
+                        >
+                          Continuer
+                        </Button>
+                        {canUpload && (
+                          <IconButton
+                            icon={Trash2}
+                            label="Supprimer"
+                            tone="danger"
+                            disabled={deleteMutation.isPending}
+                            onClick={() => {
+                              if (window.confirm(`Supprimer l'import « ${u.tag} » ? Cette action est irréversible.`)) {
+                                deleteMutation.mutate(u.id)
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
-              {pendingUploads?.length === 0 && (
+              {uploads?.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-4 text-center text-neutral-500">
-                    Aucun import en attente.
+                  <td colSpan={6} className="py-4 text-center text-neutral-500">
+                    {viewCompleted ? 'Aucun import validé.' : 'Aucun import en attente.'}
                   </td>
                 </tr>
               )}

@@ -16,6 +16,7 @@ class ImportUploadResource extends JsonResource
             'uploaded_by_name' => $this->whenLoaded('uploadedBy', fn () => $this->uploadedBy?->name),
             'created_at' => $this->created_at,
             'completed_at' => $this->completed_at,
+            'completed_by_name' => $this->whenLoaded('completedBy', fn () => $this->completedBy?->name),
         ];
     }
 }

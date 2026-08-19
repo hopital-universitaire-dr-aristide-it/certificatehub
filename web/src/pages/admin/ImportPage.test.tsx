@@ -8,7 +8,7 @@ import type { ImportParseResult, ImportUpload, User } from '../../types'
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
-  return { ...actual, api: { get: vi.fn(), post: vi.fn() } }
+  return { ...actual, api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }
 })
 
 const doctorUser: User = {
@@ -211,5 +211,45 @@ describe('ImportPage', () => {
     expect(screen.queryByLabelText('Fichier JSON')).not.toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Continuer' })).toBeInTheDocument()
+  })
+
+  it('lets a superadmin delete a pending upload after confirmation', async () => {
+    mockGetRoutes({ uploads: [pendingUpload] })
+    vi.mocked(api.delete).mockResolvedValueOnce({ data: undefined })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+
+    expect(window.confirm).toHaveBeenCalled()
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/import/uploads/1'))
+  })
+
+  it('hides the delete button for manager_ext', async () => {
+    mockGetRoutes({ uploads: [pendingUpload] })
+    seedUser(makeUser({ roles: ['manager_ext'], permissions: ['import.review'] }))
+    renderWithProviders(<ImportPage />)
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument()
+  })
+
+  it('shows the validated badge and hides Continuer/Supprimer for a completed upload', async () => {
+    mockGetRoutes({
+      uploads: [
+        {
+          ...pendingUpload,
+          completed_at: '2026-08-18T10:00:00Z',
+          completed_by_name: 'Marie Reception',
+        },
+      ],
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText(/Validé le/)).toBeInTheDocument())
+    expect(screen.getByText(/Marie Reception/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Continuer' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument()
   })
 })

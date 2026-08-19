@@ -142,6 +142,7 @@ export interface ImportUpload {
   uploaded_by_name?: string | null
   created_at: string
   completed_at: string | null
+  completed_by_name?: string | null
 }
 
 export interface ImportBatch {

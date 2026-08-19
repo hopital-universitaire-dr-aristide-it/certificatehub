@@ -55,7 +55,7 @@ class ImportController extends Controller
      */
     public function index(Request $request)
     {
-        $query = ImportUpload::with('uploadedBy')->orderByDesc('created_at');
+        $query = ImportUpload::with(['uploadedBy', 'completedBy'])->orderByDesc('created_at');
 
         $query->when(
             $request->boolean('completed', false),
@@ -74,6 +74,25 @@ class ImportController extends Controller
     public function parse(ImportUpload $upload)
     {
         return response()->json($this->importParseService->parse($upload->raw_json));
+    }
+
+    /**
+     * Supprime un depot en attente — reserve a import.manage. Un import deja
+     * valide ne peut plus etre supprime : il est lie a un lot et a des
+     * patients/certificats reellement crees en base, dont on veut garder la
+     * tracabilite.
+     */
+    public function destroy(ImportUpload $upload)
+    {
+        if ($upload->completed_at !== null) {
+            throw ValidationException::withMessages([
+                'upload' => 'Cet import a deja ete valide et ne peut plus etre supprime.',
+            ]);
+        }
+
+        $upload->delete();
+
+        return response()->noContent();
     }
 
     public function confirm(ConfirmImportRequest $request, ImportUpload $upload)
