@@ -13,6 +13,7 @@ use Modules\Certificate\Models\CertificateType;
 use Modules\FormHub\Database\Seeders\CertificatSanteFormSeeder;
 use Modules\FormHub\Models\FormDefinition;
 use Modules\Import\Models\ImportBatch;
+use Modules\Import\Models\ImportUpload;
 use Modules\Import\Services\ImportConfirmService;
 use Modules\Patient\Models\Patient;
 use Modules\SystemAdmin\Database\Seeders\RolesAndPermissionsSeeder;
@@ -189,5 +190,23 @@ class ImportConfirmServiceTest extends TestCase
 
         $this->assertSame($first['batch']->id, $second['batch']->id);
         $this->assertSame(1, ImportBatch::count());
+    }
+
+    public function test_confirm_marks_the_upload_completed_when_provided(): void
+    {
+        $uploader = User::factory()->create();
+        $actor = User::factory()->create();
+        $upload = ImportUpload::create([
+            'tag' => 'Lot Test',
+            'raw_json' => [],
+            'uploaded_by' => $uploader->id,
+        ]);
+
+        $result = app(ImportConfirmService::class)->confirm($this->payload(), $actor, $upload);
+
+        $upload->refresh();
+        $this->assertSame($actor->id, $upload->completed_by);
+        $this->assertNotNull($upload->completed_at);
+        $this->assertSame($result['batch']->id, $upload->import_batch_id);
     }
 }

@@ -1,4 +1,4 @@
-export type Role = 'reception' | 'doctor' | 'it' | 'admin' | 'superadmin'
+export type Role = 'reception' | 'doctor' | 'it' | 'admin' | 'superadmin' | 'manager_ext'
 
 export interface AuthenticatedUser {
   id: number
@@ -133,6 +133,15 @@ export interface PaginatedResponse<T> {
     prev: string | null
     next: string | null
   }
+}
+
+export interface ImportUpload {
+  id: number
+  tag: string
+  original_filename: string | null
+  uploaded_by_name?: string | null
+  created_at: string
+  completed_at: string | null
 }
 
 export interface ImportBatch {

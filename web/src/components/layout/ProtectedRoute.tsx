@@ -2,7 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
 
 interface ProtectedRouteProps {
-  permission?: string
+  permission?: string | string[]
   role?: string
 }
 
@@ -13,7 +13,7 @@ export function ProtectedRoute({ permission, role }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />
   }
 
-  if (permission && !hasPermission(permission)) {
+  if (permission && !hasPermission(...(Array.isArray(permission) ? permission : [permission]))) {
     return <Navigate to="/" replace />
   }
 

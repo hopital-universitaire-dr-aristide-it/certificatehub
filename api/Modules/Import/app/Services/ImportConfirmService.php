@@ -10,6 +10,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\Certificate\Models\CertificateType;
 use Modules\Certificate\Services\CertificateService;
 use Modules\Import\Models\ImportBatch;
+use Modules\Import\Models\ImportUpload;
 use Modules\Import\Support\DoctorName;
 use Modules\Patient\Services\PatientService;
 use Modules\Reception\Services\ReceptionService;
@@ -28,9 +29,11 @@ class ImportConfirmService
      * PatientService::create, qui reutilise silencieusement un dossier
      * exact-match existant) et les certificats — deja finalises et
      * numerotes, avec finalized_at aligne sur la date d'examen reelle du
-     * JSON plutot que la date de l'import.
+     * JSON plutot que la date de l'import. Si $upload est fourni (flux en 2
+     * etapes), il est marque complete dans la meme transaction — jamais
+     * "a moitie valide" en cas d'echec partiel.
      */
-    public function confirm(array $data, User $actor): array
+    public function confirm(array $data, User $actor, ?ImportUpload $upload = null): array
     {
         $certificateType = CertificateType::whereHas(
             'formDefinition',
@@ -43,7 +46,7 @@ class ImportConfirmService
             ]);
         }
 
-        return DB::transaction(function () use ($data, $actor, $certificateType) {
+        return DB::transaction(function () use ($data, $actor, $certificateType, $upload) {
             $batch = ImportBatch::firstOrCreate(['tag' => $data['tag']], ['created_by' => $actor->id]);
 
             [$doctorMap, $doctorsCreated] = $this->resolveDoctors($data['doctors'], $batch);
@@ -56,6 +59,12 @@ class ImportConfirmService
                 $actor,
                 $batch,
             );
+
+            $upload?->update([
+                'completed_by' => $actor->id,
+                'completed_at' => now(),
+                'import_batch_id' => $batch->id,
+            ]);
 
             return [
                 'batch' => $batch,

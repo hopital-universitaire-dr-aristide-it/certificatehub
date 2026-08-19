@@ -36,6 +36,18 @@ class RolesAndPermissionsSeeder extends Seeder
             'user.view', 'user.create', 'user.update', 'user.deactivate', 'role.assign',
             'report.view', 'certificate.print',
         ],
+        /**
+         * Partenaire externe a l'hopital : memes permissions que reception,
+         * plus la reprise/validation des imports JSON deposes par le
+         * superadmin (voir import.review ci-dessous). Ne peut pas deposer
+         * lui-meme un nouvel import — ca reste reserve a import.manage.
+         */
+        'manager_ext' => [
+            'auth.login', 'auth.logout', 'auth.change_own_password',
+            'patient.view', 'patient.create', 'patient.update', 'patient.search',
+            'certificate.view', 'certificate.create', 'certificate.mark_paid', 'certificate.print',
+            'import.review',
+        ],
         // superadmin: toutes les permissions, assignees ci-dessous sans liste explicite
         'superadmin' => [],
     ];

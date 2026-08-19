@@ -4,7 +4,7 @@ namespace Modules\Import\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class ParseImportRequest extends FormRequest
+class StoreImportUploadRequest extends FormRequest
 {
     public function authorize(): bool
     {

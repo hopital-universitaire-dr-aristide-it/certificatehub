@@ -56,7 +56,7 @@ describe('AppLayout', () => {
     expect(screen.queryByText('Certificats imprimés')).not.toBeInTheDocument()
   })
 
-  it('shows the JSON import link under its own section only with import.manage', () => {
+  it('shows the JSON import link with import.manage', () => {
     seedUser(makeUser({ roles: ['superadmin'], permissions: ['import.manage'] }))
 
     renderWithProviders(
@@ -67,11 +67,24 @@ describe('AppLayout', () => {
       </Routes>,
     )
 
-    expect(screen.getByText('Importer JSON')).toBeInTheDocument()
-    expect(screen.getByText('Administration avancée')).toBeInTheDocument()
+    expect(screen.getByText('Imports JSON')).toBeInTheDocument()
   })
 
-  it('hides the JSON import link without import.manage', () => {
+  it('shows the JSON import link with import.review (manager_ext) even without import.manage', () => {
+    seedUser(makeUser({ roles: ['manager_ext'], permissions: ['import.review'] }))
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<p>home</p>} />
+        </Route>
+      </Routes>,
+    )
+
+    expect(screen.getByText('Imports JSON')).toBeInTheDocument()
+  })
+
+  it('hides the JSON import link without import.manage or import.review', () => {
     seedUser(makeUser({ roles: ['reception'], permissions: ['certificate.create'] }))
 
     renderWithProviders(
@@ -82,8 +95,7 @@ describe('AppLayout', () => {
       </Routes>,
     )
 
-    expect(screen.queryByText('Importer JSON')).not.toBeInTheDocument()
-    expect(screen.queryByText('Administration avancée')).not.toBeInTheDocument()
+    expect(screen.queryByText('Imports JSON')).not.toBeInTheDocument()
   })
 
   it('logs out when the button is clicked', async () => {

@@ -4,8 +4,6 @@ namespace Modules\Import\Tests\Unit;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Validation\ValidationException;
 use Modules\Import\Services\ImportParseService;
 use Modules\Patient\Models\Patient;
 use Modules\SystemAdmin\Database\Seeders\RolesAndPermissionsSeeder;
@@ -19,11 +17,6 @@ class ImportParseServiceTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
-    }
-
-    private function fileFor(array $entries): UploadedFile
-    {
-        return UploadedFile::fake()->createWithContent('certificats.json', json_encode($entries));
     }
 
     private function entry(array $overrides = []): array
@@ -56,9 +49,7 @@ class ImportParseServiceTest extends TestCase
 
     public function test_parse_returns_patient_doctor_and_certificate_rows(): void
     {
-        $file = $this->fileFor([$this->entry()]);
-
-        $result = app(ImportParseService::class)->parse($file);
+        $result = app(ImportParseService::class)->parse([$this->entry()]);
 
         $this->assertCount(1, $result['patients']);
         $this->assertCount(1, $result['doctors']);
@@ -71,12 +62,10 @@ class ImportParseServiceTest extends TestCase
 
     public function test_parse_skips_entries_with_missing_patient_or_certificate(): void
     {
-        $file = $this->fileFor([
+        $result = app(ImportParseService::class)->parse([
             $this->entry(),
             ['source_file' => 'blank.png', 'patient' => null, 'certificate' => null, 'extraction_notes' => 'scan vierge'],
         ]);
-
-        $result = app(ImportParseService::class)->parse($file);
 
         $this->assertCount(1, $result['patients']);
         $this->assertCount(1, $result['skipped']);
@@ -86,13 +75,11 @@ class ImportParseServiceTest extends TestCase
 
     public function test_parse_deduplicates_doctor_name_variants(): void
     {
-        $file = $this->fileFor([
+        $result = app(ImportParseService::class)->parse([
             $this->entry(['certificate' => ['doctor_name' => 'Dr. Salomon']]),
             $this->entry(['patient' => ['first_name' => 'Marie'], 'certificate' => ['doctor_name' => 'Salomon']]),
             $this->entry(['patient' => ['first_name' => 'Ana'], 'certificate' => ['doctor_name' => 'Désir Harold']]),
         ]);
-
-        $result = app(ImportParseService::class)->parse($file);
 
         $this->assertCount(2, $result['doctors']);
         $this->assertSame('salomon', $result['doctors'][0]['normalized_name']);
@@ -105,9 +92,7 @@ class ImportParseServiceTest extends TestCase
         $doctor = User::factory()->create(['name' => 'Salomon']);
         $doctor->assignRole('doctor');
 
-        $file = $this->fileFor([$this->entry(['certificate' => ['doctor_name' => 'Dr. Salomon']])]);
-
-        $result = app(ImportParseService::class)->parse($file);
+        $result = app(ImportParseService::class)->parse([$this->entry(['certificate' => ['doctor_name' => 'Dr. Salomon']])]);
 
         $this->assertSame('existing', $result['doctors'][0]['action']);
         $this->assertSame($doctor->id, $result['doctors'][0]['matched_user_id']);
@@ -122,19 +107,18 @@ class ImportParseServiceTest extends TestCase
             'date_of_birth' => '2000-01-01',
         ]);
 
-        $file = $this->fileFor([$this->entry()]);
-
-        $result = app(ImportParseService::class)->parse($file);
+        $result = app(ImportParseService::class)->parse([$this->entry()]);
 
         $this->assertSame($existing->id, $result['patients'][0]['exact_duplicate_patient_id']);
     }
 
-    public function test_parse_rejects_invalid_json(): void
+    public function test_parse_is_replayable_without_side_effects(): void
     {
-        $file = UploadedFile::fake()->createWithContent('bad.json', 'not json');
+        $entries = [$this->entry()];
 
-        $this->expectException(ValidationException::class);
+        $first = app(ImportParseService::class)->parse($entries);
+        $second = app(ImportParseService::class)->parse($entries);
 
-        app(ImportParseService::class)->parse($file);
+        $this->assertSame($first, $second);
     }
 }

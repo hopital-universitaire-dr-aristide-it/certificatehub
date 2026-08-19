@@ -25,7 +25,7 @@ export function AppLayout() {
     { to: '/admin/patients', label: 'Patients', show: hasPermission('patient.delete') },
     { to: '/admin/certificates', label: 'Certificats', show: hasPermission('certificate.delete') },
     { to: '/admin/settings', label: 'Paramètres', show: hasPermission('settings.manage') },
-    { to: '/admin/import', label: 'Importer JSON', show: hasPermission('import.manage'), section: 'Administration avancée' },
+    { to: '/admin/import', label: 'Imports JSON', show: hasPermission('import.manage', 'import.review') },
     { to: '/it/system', label: 'Système', show: hasRole('it') },
   ]
 

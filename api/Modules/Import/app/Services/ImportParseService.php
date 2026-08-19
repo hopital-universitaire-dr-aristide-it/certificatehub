@@ -3,8 +3,6 @@
 namespace Modules\Import\Services;
 
 use App\Models\User;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Validation\ValidationException;
 use Modules\Import\Support\DoctorName;
 use Modules\Patient\Services\DeduplicationService;
 
@@ -13,24 +11,20 @@ class ImportParseService
     public function __construct(private readonly DeduplicationService $deduplicationService) {}
 
     /**
-     * Lit le JSON uploade (tableau d'objets {patient, certificate} — voir
-     * la tache d'extraction des certificats scannes) et produit 3 listes de
-     * previsualisation editables : patients, medecins (dedupliques par nom
-     * normalise, rapproches d'un compte existant quand possible) et
-     * certificats (references aux lignes patient/medecin par row_id). Ne
-     * persiste rien — la creation reelle se fait dans ImportConfirmService.
+     * Prend le contenu deja decode d'un ImportUpload::raw_json (tableau
+     * d'objets {patient, certificate} — voir la tache d'extraction des
+     * certificats scannes) et produit 3 listes de previsualisation editables :
+     * patients, medecins (dedupliques par nom normalise, rapproches d'un
+     * compte existant quand possible) et certificats (references aux lignes
+     * patient/medecin par row_id). Rejouable sans effet de bord — la lecture/
+     * decodage du fichier et sa persistance ont deja eu lieu au moment du
+     * depot (voir ImportController::store) ; la creation reelle des
+     * enregistrements se fait dans ImportConfirmService.
+     *
+     * @param  array<int, mixed>  $decoded
      */
-    public function parse(UploadedFile $file): array
+    public function parse(array $decoded): array
     {
-        $contents = file_get_contents($file->getRealPath());
-        $decoded = $contents !== false ? json_decode($contents, true) : null;
-
-        if (! is_array($decoded)) {
-            throw ValidationException::withMessages([
-                'file' => 'Le fichier n\'est pas un JSON valide.',
-            ]);
-        }
-
         $existingDoctors = User::role('doctor')->get(['id', 'name'])
             ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'normalized' => DoctorName::normalize($u->name)]);
 

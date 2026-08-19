@@ -3,10 +3,14 @@
 namespace Modules\Import\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Modules\Import\Http\Requests\ConfirmImportRequest;
-use Modules\Import\Http\Requests\ParseImportRequest;
+use Modules\Import\Http\Requests\StoreImportUploadRequest;
 use Modules\Import\Http\Resources\ImportBatchResource;
+use Modules\Import\Http\Resources\ImportUploadResource;
 use Modules\Import\Models\ImportBatch;
+use Modules\Import\Models\ImportUpload;
 use Modules\Import\Services\ImportConfirmService;
 use Modules\Import\Services\ImportParseService;
 
@@ -17,14 +21,64 @@ class ImportController extends Controller
         private readonly ImportConfirmService $importConfirmService,
     ) {}
 
-    public function parse(ParseImportRequest $request)
+    /**
+     * Depot d'un nouveau fichier — reserve a import.manage (superadmin). Ne
+     * fait qu'enregistrer le JSON brut ; l'extraction/apercu n'a lieu que
+     * plus tard, quand quelqu'un (superadmin ou manager_ext) reprend cet
+     * upload — voir parse()/confirm() ci-dessous.
+     */
+    public function store(StoreImportUploadRequest $request)
     {
-        return response()->json($this->importParseService->parse($request->file('file')));
+        $file = $request->file('file');
+        $contents = file_get_contents($file->getRealPath());
+        $decoded = $contents !== false ? json_decode($contents, true) : null;
+
+        if (! is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'file' => 'Le fichier n\'est pas un JSON valide.',
+            ]);
+        }
+
+        $upload = ImportUpload::create([
+            'tag' => $request->string('tag')->toString(),
+            'original_filename' => $file->getClientOriginalName(),
+            'raw_json' => $decoded,
+            'uploaded_by' => $request->user()->id,
+        ]);
+
+        return new ImportUploadResource($upload->load('uploadedBy'));
     }
 
-    public function confirm(ConfirmImportRequest $request)
+    /**
+     * File des imports en attente (par defaut) ou completes — visible a
+     * import.manage et import.review (superadmin et manager_ext).
+     */
+    public function index(Request $request)
     {
-        $result = $this->importConfirmService->confirm($request->validated(), $request->user());
+        $query = ImportUpload::with('uploadedBy')->orderByDesc('created_at');
+
+        $query->when(
+            $request->boolean('completed', false),
+            fn ($q) => $q->whereNotNull('completed_at'),
+            fn ($q) => $q->whereNull('completed_at'),
+        );
+
+        return ImportUploadResource::collection($query->get());
+    }
+
+    /**
+     * Rejoue l'extraction sur le JSON deja stocke — sans effet de bord,
+     * peut etre appele plusieurs fois (ex: si l'apercu doit etre rafraichi
+     * apres qu'un medecin ait ete cree entre-temps).
+     */
+    public function parse(ImportUpload $upload)
+    {
+        return response()->json($this->importParseService->parse($upload->raw_json));
+    }
+
+    public function confirm(ConfirmImportRequest $request, ImportUpload $upload)
+    {
+        $result = $this->importConfirmService->confirm($request->validated(), $request->user(), $upload);
 
         return response()->json([
             'batch' => new ImportBatchResource($result['batch']),

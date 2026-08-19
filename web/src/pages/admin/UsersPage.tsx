@@ -10,7 +10,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Input, Label, Select, FieldError } from '../../components/ui/Field'
 import type { ImportBatch, Role, User } from '../../types'
 
-const ROLES: Role[] = ['reception', 'doctor', 'it', 'admin', 'superadmin']
+const ROLES: Role[] = ['reception', 'doctor', 'it', 'admin', 'superadmin', 'manager_ext']
 
 export function UsersPage() {
   const queryClient = useQueryClient()

@@ -75,7 +75,7 @@ function App() {
               <Route path="admin/settings" element={<SettingsPage />} />
             </Route>
 
-            <Route element={<ProtectedRoute permission="import.manage" />}>
+            <Route element={<ProtectedRoute permission={['import.manage', 'import.review']} />}>
               <Route path="admin/import" element={<ImportPage />} />
             </Route>
 

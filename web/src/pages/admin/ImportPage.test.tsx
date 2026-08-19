@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { ImportPage } from './ImportPage'
 import { renderWithProviders, seedUser, makeUser } from '../../test/renderWithProviders'
 import { api } from '../../lib/api'
-import type { ImportParseResult, User } from '../../types'
+import type { ImportParseResult, ImportUpload, User } from '../../types'
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
@@ -19,6 +19,15 @@ const doctorUser: User = {
   roles: ['doctor'],
   created_at: new Date().toISOString(),
   deleted_at: null,
+}
+
+const pendingUpload: ImportUpload = {
+  id: 1,
+  tag: 'Lot Test',
+  original_filename: 'certs.json',
+  uploaded_by_name: 'Super Admin',
+  created_at: new Date().toISOString(),
+  completed_at: null,
 }
 
 function parseResult(overrides: Partial<ImportParseResult> = {}): ImportParseResult {
@@ -69,58 +78,79 @@ function parseResult(overrides: Partial<ImportParseResult> = {}): ImportParseRes
   }
 }
 
-function renderPage() {
-  seedUser(makeUser({ roles: ['superadmin'], permissions: ['import.manage'] }))
-  renderWithProviders(<ImportPage />)
+function mockGetRoutes(routes: { uploads?: ImportUpload[]; parse?: ImportParseResult }) {
+  vi.mocked(api.get).mockImplementation((url: string) => {
+    if (url === '/users') return Promise.resolve({ data: { data: [doctorUser] } })
+    if (url === '/import/uploads') return Promise.resolve({ data: { data: routes.uploads ?? [] } })
+    if (url.startsWith('/import/uploads/') && url.endsWith('/parse')) {
+      return Promise.resolve({ data: routes.parse ?? parseResult() })
+    }
+    return Promise.resolve({ data: { data: [] } })
+  })
 }
 
-async function uploadAndAnalyze(result: ImportParseResult) {
-  vi.mocked(api.post).mockResolvedValueOnce({ data: result })
-
-  const file = new File([JSON.stringify([])], 'certs.json', { type: 'application/json' })
-  await userEvent.upload(screen.getByLabelText('Fichier JSON'), file)
-  await userEvent.type(screen.getByLabelText('Étiquette (tag)'), 'Lot Test')
-  await userEvent.click(screen.getByRole('button', { name: 'Analyser' }))
-
-  await waitFor(() => expect(screen.getByText('Médecins')).toBeInTheDocument())
+function renderPage(permissions: string[] = ['import.manage', 'import.review']) {
+  seedUser(makeUser({ roles: ['superadmin'], permissions }))
+  renderWithProviders(<ImportPage />)
 }
 
 describe('ImportPage', () => {
   beforeEach(() => {
     vi.mocked(api.get).mockReset()
     vi.mocked(api.post).mockReset()
-    vi.mocked(api.get).mockResolvedValue({ data: { data: [doctorUser] } })
   })
 
-  it('parses an uploaded file and shows editable preview lists', async () => {
+  it('uploads a file, then continues immediately into the editable preview', async () => {
+    mockGetRoutes({})
+    vi.mocked(api.post).mockResolvedValueOnce({ data: pendingUpload })
     renderPage()
 
-    await uploadAndAnalyze(parseResult())
+    const file = new File([JSON.stringify([])], 'certs.json', { type: 'application/json' })
+    await userEvent.upload(screen.getByLabelText('Fichier JSON'), file)
+    await userEvent.type(screen.getByLabelText('Étiquette (tag)'), 'Lot Test')
+    await userEvent.click(screen.getByRole('button', { name: 'Uploader' }))
 
-    expect(screen.getByDisplayValue('Jean')).toBeInTheDocument()
-    // "Dr. Salomon" appears twice: the doctors-table Input, and the certificate row's doctor <select>.
-    expect(screen.getAllByDisplayValue('Dr. Salomon')).toHaveLength(2)
-    expect(screen.getByText('Certificats')).toBeInTheDocument()
-
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continuer maintenant' })).toBeInTheDocument())
     const [, sentBody] = vi.mocked(api.post).mock.calls[0]
     expect(sentBody).toBeInstanceOf(FormData)
     expect((sentBody as FormData).get('tag')).toBe('Lot Test')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer maintenant' }))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/import/uploads/1/parse'))
+    await waitFor(() => expect(screen.getByText('Médecins')).toBeInTheDocument())
+    expect(screen.getByDisplayValue('Jean')).toBeInTheDocument()
+  })
+
+  it('lists pending uploads and lets you continue one from the list', async () => {
+    mockGetRoutes({ uploads: [pendingUpload] })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/import/uploads/1/parse'))
+    await waitFor(() => expect(screen.getByText('Certificats')).toBeInTheDocument())
   })
 
   it('lists skipped entries separately', async () => {
+    mockGetRoutes({ uploads: [pendingUpload], parse: parseResult({ skipped: [{ source_file: 'blank.png', reason: 'scan vierge / illisible' }] }) })
     renderPage()
 
-    await uploadAndAnalyze(
-      parseResult({ skipped: [{ source_file: 'blank.png', reason: 'scan vierge / illisible' }] }),
-    )
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
 
-    expect(screen.getByText('Lignes ignorées')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Lignes ignorées')).toBeInTheDocument())
     expect(screen.getByText(/blank.png/)).toBeInTheDocument()
   })
 
-  it('submits the edited preview to /import/confirm', async () => {
+  it('submits the edited preview to the upload-scoped confirm endpoint', async () => {
+    mockGetRoutes({ uploads: [pendingUpload] })
     renderPage()
-    await uploadAndAnalyze(parseResult())
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+    await waitFor(() => expect(screen.getByText('Certificats')).toBeInTheDocument())
 
     const firstNameInput = screen.getByDisplayValue('Jean')
     await userEvent.clear(firstNameInput)
@@ -138,18 +168,21 @@ describe('ImportPage', () => {
     await userEvent.click(screen.getByRole('button', { name: "Valider l'import" }))
 
     await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith('/import/confirm', expect.objectContaining({
-        tag: 'Lot Test',
-        patients: [expect.objectContaining({ row_id: 'p0', first_name: 'Jeanne' })],
-      })),
+      expect(api.post).toHaveBeenCalledWith(
+        '/import/uploads/1/confirm',
+        expect.objectContaining({
+          tag: 'Lot Test',
+          patients: [expect.objectContaining({ row_id: 'p0', first_name: 'Jeanne' })],
+        }),
+      ),
     )
     await waitFor(() => expect(screen.getByText(/Import terminé/)).toBeInTheDocument())
   })
 
   it('disables the confirm button until an existing-doctor row has a matched account', async () => {
-    renderPage()
-    await uploadAndAnalyze(
-      parseResult({
+    mockGetRoutes({
+      uploads: [pendingUpload],
+      parse: parseResult({
         doctors: [
           {
             row_id: 'd0',
@@ -161,8 +194,22 @@ describe('ImportPage', () => {
           },
         ],
       }),
-    )
+    })
+    renderPage()
 
-    expect(screen.getByRole('button', { name: "Valider l'import" })).toBeDisabled()
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: "Valider l'import" })).toBeDisabled())
+  })
+
+  it('hides the upload form for manager_ext but still shows the pending list', async () => {
+    mockGetRoutes({ uploads: [pendingUpload] })
+    seedUser(makeUser({ roles: ['manager_ext'], permissions: ['import.review'] }))
+    renderWithProviders(<ImportPage />)
+
+    expect(screen.queryByLabelText('Fichier JSON')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Continuer' })).toBeInTheDocument()
   })
 })
