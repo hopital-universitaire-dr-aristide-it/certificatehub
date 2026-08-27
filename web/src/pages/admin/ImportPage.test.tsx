@@ -8,7 +8,7 @@ import type { ImportParseResult, ImportUpload, User } from '../../types'
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
-  return { ...actual, api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }
+  return { ...actual, api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }
 })
 
 const doctorUser: User = {
@@ -98,6 +98,8 @@ describe('ImportPage', () => {
   beforeEach(() => {
     vi.mocked(api.get).mockReset()
     vi.mocked(api.post).mockReset()
+    vi.mocked(api.put).mockReset()
+    vi.mocked(api.put).mockResolvedValue({ data: undefined })
   })
 
   it('uploads a file, then continues immediately into the editable preview', async () => {
@@ -331,5 +333,52 @@ describe('ImportPage', () => {
     expect(screen.getByText(/Marie Reception/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Continuer' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument()
+  })
+
+  it('auto-saves the draft shortly after an edit, and reflects it in the status text', async () => {
+    mockGetRoutes({ uploads: [pendingUpload] })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+    await waitFor(() => expect(screen.getByText('Certificats')).toBeInTheDocument())
+
+    const firstNameInput = screen.getByDisplayValue('Jean')
+    await userEvent.clear(firstNameInput)
+    await userEvent.type(firstNameInput, 'Jeanne')
+
+    expect(screen.getByText('Modifications non enregistrées')).toBeInTheDocument()
+
+    await waitFor(
+      () =>
+        expect(api.put).toHaveBeenCalledWith(
+          '/import/uploads/1/draft',
+          expect.objectContaining({ patients: [expect.objectContaining({ first_name: 'Jeanne' })] }),
+        ),
+      { timeout: 3000 },
+    )
+    await waitFor(() => expect(screen.getByText('Brouillon enregistré')).toBeInTheDocument())
+  })
+
+  it('flushes an unsaved draft immediately when leaving via "Annuler / retour à la liste"', async () => {
+    mockGetRoutes({ uploads: [pendingUpload] })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+    await waitFor(() => expect(screen.getByText('Certificats')).toBeInTheDocument())
+
+    const firstNameInput = screen.getByDisplayValue('Jean')
+    await userEvent.clear(firstNameInput)
+    await userEvent.type(firstNameInput, 'Jeanne')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Annuler / retour à la liste' }))
+
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith(
+        '/import/uploads/1/draft',
+        expect.objectContaining({ patients: [expect.objectContaining({ first_name: 'Jeanne' })] }),
+      ),
+    )
   })
 })

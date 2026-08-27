@@ -69,11 +69,46 @@ class ImportController extends Controller
     /**
      * Rejoue l'extraction sur le JSON deja stocke — sans effet de bord,
      * peut etre appele plusieurs fois (ex: si l'apercu doit etre rafraichi
-     * apres qu'un medecin ait ete cree entre-temps).
+     * apres qu'un medecin ait ete cree entre-temps). Si un brouillon a deja
+     * ete sauvegarde (voir saveDraft), on le renvoie tel quel plutot que de
+     * reparser raw_json — pour reprendre les corrections deja faites au lieu
+     * de repartir de zero.
      */
     public function parse(ImportUpload $upload)
     {
+        if ($upload->draft_result !== null) {
+            return response()->json($upload->draft_result);
+        }
+
         return response()->json($this->importParseService->parse($upload->raw_json));
+    }
+
+    /**
+     * Sauvegarde l'apercu en cours d'edition (patients/medecins/certificats
+     * corriges) — meme forme que la reponse de parse() ci-dessus. Appele au
+     * fil des corrections cote frontend (debounce) pour ne pas perdre le
+     * travail si la personne quitte avant de valider. Ne cree rien en base :
+     * simple cache d'edition, revalide integralement par confirm() quand
+     * l'import est reellement valide.
+     */
+    public function saveDraft(Request $request, ImportUpload $upload)
+    {
+        if ($upload->completed_at !== null) {
+            throw ValidationException::withMessages([
+                'upload' => 'Cet import a deja ete valide et ne peut plus etre modifie.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'patients' => ['required', 'array'],
+            'doctors' => ['required', 'array'],
+            'certificates' => ['required', 'array'],
+            'skipped' => ['required', 'array'],
+        ]);
+
+        $upload->update(['draft_result' => $validated]);
+
+        return response()->noContent();
     }
 
     /**

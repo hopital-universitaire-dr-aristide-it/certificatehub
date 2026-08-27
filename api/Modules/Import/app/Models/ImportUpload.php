@@ -12,6 +12,7 @@ class ImportUpload extends Model
         'tag',
         'original_filename',
         'raw_json',
+        'draft_result',
         'uploaded_by',
         'completed_by',
         'completed_at',
@@ -22,6 +23,7 @@ class ImportUpload extends Model
     {
         return [
             'raw_json' => 'array',
+            'draft_result' => 'array',
             'completed_at' => 'datetime',
         ];
     }

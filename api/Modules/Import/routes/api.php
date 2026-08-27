@@ -22,6 +22,7 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     Route::middleware('can:import.review')->group(function () {
         Route::get('import/uploads', [ImportController::class, 'index']);
         Route::get('import/uploads/{upload}/parse', [ImportController::class, 'parse']);
+        Route::put('import/uploads/{upload}/draft', [ImportController::class, 'saveDraft']);
         Route::post('import/uploads/{upload}/confirm', [ImportController::class, 'confirm']);
     });
 });

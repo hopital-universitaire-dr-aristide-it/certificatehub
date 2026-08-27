@@ -257,6 +257,103 @@ class ImportControllerTest extends TestCase
         $this->assertDatabaseHas('import_uploads', ['id' => $uploadId, 'completed_by' => $superadmin->id]);
     }
 
+    private function draftPayload(string $correctedFirstName = 'Jeanne'): array
+    {
+        return [
+            'patients' => [
+                [
+                    'row_id' => 'p0',
+                    'source_file' => 'a.png',
+                    'first_name' => $correctedFirstName,
+                    'last_name' => 'Pierre',
+                    'sex' => null,
+                    'date_of_birth' => '2000-01-01',
+                    'age' => null,
+                    'residence' => 'Delmas',
+                    'exact_duplicate_patient_id' => null,
+                    'potential_duplicates' => [],
+                ],
+            ],
+            'doctors' => [
+                [
+                    'row_id' => 'd0',
+                    'name' => 'Dr. Salomon',
+                    'normalized_name' => 'salomon',
+                    'matched_user_id' => null,
+                    'matched_user_name' => null,
+                    'action' => 'create',
+                ],
+            ],
+            'certificates' => [
+                [
+                    'row_id' => 'c0',
+                    'source_file' => 'a.png',
+                    'patient_row_id' => 'p0',
+                    'doctor_row_id' => 'd0',
+                    'exam_date' => '2026-08-01',
+                    'form_data' => ['outcome' => 'sain'],
+                ],
+            ],
+            'skipped' => [],
+        ];
+    }
+
+    public function test_manager_ext_can_save_a_draft_and_parse_returns_it_afterward(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $upload = $this->createUpload($superadmin);
+        $managerExt = $this->userWithRole('manager_ext');
+
+        $this->actingAs($managerExt, 'sanctum')
+            ->putJson("/api/v1/import/uploads/{$upload->id}/draft", $this->draftPayload('Jeanne'))
+            ->assertNoContent();
+
+        $response = $this->actingAs($managerExt, 'sanctum')->getJson("/api/v1/import/uploads/{$upload->id}/parse");
+
+        $response->assertOk();
+        $this->assertSame('Jeanne', $response->json('patients.0.first_name'));
+    }
+
+    public function test_saving_a_draft_on_an_already_completed_upload_is_rejected(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $upload = $this->createUpload($superadmin);
+        $upload->update(['completed_by' => $superadmin->id, 'completed_at' => now()]);
+
+        $this->actingAs($superadmin, 'sanctum')
+            ->putJson("/api/v1/import/uploads/{$upload->id}/draft", $this->draftPayload())
+            ->assertStatus(422);
+    }
+
+    public function test_confirm_clears_the_saved_draft(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $upload = $this->createUpload($superadmin);
+        $managerExt = $this->userWithRole('manager_ext');
+
+        $this->actingAs($managerExt, 'sanctum')
+            ->putJson("/api/v1/import/uploads/{$upload->id}/draft", $this->draftPayload())
+            ->assertNoContent();
+        $this->assertNotNull($upload->fresh()->draft_result);
+
+        $this->actingAs($managerExt, 'sanctum')
+            ->postJson("/api/v1/import/uploads/{$upload->id}/confirm", $this->confirmPayload())
+            ->assertCreated();
+
+        $this->assertNull($upload->fresh()->draft_result);
+    }
+
+    public function test_reception_cannot_save_a_draft(): void
+    {
+        $superadmin = $this->userWithRole('superadmin');
+        $upload = $this->createUpload($superadmin);
+        $reception = $this->userWithRole('reception');
+
+        $this->actingAs($reception, 'sanctum')
+            ->putJson("/api/v1/import/uploads/{$upload->id}/draft", $this->draftPayload())
+            ->assertStatus(403);
+    }
+
     public function test_reception_cannot_confirm_an_upload(): void
     {
         $superadmin = $this->userWithRole('superadmin');

@@ -65,6 +65,7 @@ class ImportConfirmService
                 'completed_by' => $actor->id,
                 'completed_at' => now(),
                 'import_batch_id' => $batch->id,
+                'draft_result' => null,
             ]);
 
             return [

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { api, apiErrorMessage } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
+import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { Card, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { IconButton } from '../../components/ui/IconButton'
@@ -44,6 +45,13 @@ export function ImportPage() {
   const [doctors, setDoctors] = useState<ImportDoctorRow[]>([])
   const [certificates, setCertificates] = useState<ImportCertificateRow[]>([])
   const [skipped, setSkipped] = useState<ImportParseResult['skipped']>([])
+
+  // Suivi du brouillon : editVersion est incremente a chaque edition,
+  // savedVersion suit la derniere version effectivement sauvegardee. Tant
+  // qu'ils different, il y a des changements non enregistres.
+  const [editVersion, setEditVersion] = useState(0)
+  const [savedVersion, setSavedVersion] = useState(0)
+  const debouncedEditVersion = useDebouncedValue(editVersion, 1500)
 
   const [patientSearch, setPatientSearch] = useState('')
   const [doctorSearch, setDoctorSearch] = useState('')
@@ -117,9 +125,48 @@ export function ImportPage() {
       setPatientSearch('')
       setDoctorSearch('')
       setCertificateSearch('')
+      setEditVersion(0)
+      setSavedVersion(0)
     },
     onError: (err) => setError(apiErrorMessage(err)),
   })
+
+  // mutationFn ne lit rien depuis les fermetures du composant : tout ce dont
+  // elle a besoin (id de l'upload, snapshot des lignes, version) lui est
+  // passe explicitement via mutate(), pour ne jamais risquer d'envoyer un
+  // etat perime/vide si le composant re-rend (ex: closePreview) entre
+  // l'appel et l'execution reelle de la requete.
+  const saveDraftMutation = useMutation({
+    mutationFn: async (payload: {
+      uploadId: number
+      version: number
+      patients: ImportPatientRow[]
+      doctors: ImportDoctorRow[]
+      certificates: ImportCertificateRow[]
+      skipped: ImportParseResult['skipped']
+    }) => {
+      await api.put(`/import/uploads/${payload.uploadId}/draft`, {
+        patients: payload.patients,
+        doctors: payload.doctors,
+        certificates: payload.certificates,
+        skipped: payload.skipped,
+      })
+      return payload.version
+    },
+    onSuccess: (version) => setSavedVersion(version),
+    onError: (err) => setError(apiErrorMessage(err)),
+  })
+
+  function saveDraftNow(version: number) {
+    if (!activeUpload) return
+    saveDraftMutation.mutate({ uploadId: activeUpload.id, version, patients, doctors, certificates, skipped })
+  }
+
+  useEffect(() => {
+    if (!activeUpload || debouncedEditVersion === savedVersion) return
+    saveDraftNow(debouncedEditVersion)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedEditVersion])
 
   const confirmMutation = useMutation({
     mutationFn: async () => {
@@ -166,6 +213,9 @@ export function ImportPage() {
   })
 
   function closePreview() {
+    if (editVersion !== savedVersion) {
+      saveDraftNow(editVersion)
+    }
     setActiveUpload(null)
     setPatients([])
     setDoctors([])
@@ -174,18 +224,23 @@ export function ImportPage() {
     setPatientSearch('')
     setDoctorSearch('')
     setCertificateSearch('')
+    setEditVersion(0)
+    setSavedVersion(0)
   }
 
   function updatePatient(rowId: string, changes: Partial<ImportPatientRow>) {
     setPatients((prev) => prev.map((p) => (p.row_id === rowId ? { ...p, ...changes } : p)))
+    setEditVersion((v) => v + 1)
   }
 
   function updateDoctor(rowId: string, changes: Partial<ImportDoctorRow>) {
     setDoctors((prev) => prev.map((d) => (d.row_id === rowId ? { ...d, ...changes } : d)))
+    setEditVersion((v) => v + 1)
   }
 
   function updateCertificate(rowId: string, changes: Partial<ImportCertificateRow>) {
     setCertificates((prev) => prev.map((c) => (c.row_id === rowId ? { ...c, ...changes } : c)))
+    setEditVersion((v) => v + 1)
   }
 
   const hasPreview = activeUpload !== null
@@ -763,7 +818,16 @@ export function ImportPage() {
             </Card>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
+            {editVersion > 0 && (
+              <span className="text-xs text-neutral-500">
+                {saveDraftMutation.isPending
+                  ? 'Enregistrement du brouillon...'
+                  : editVersion === savedVersion
+                    ? 'Brouillon enregistré'
+                    : 'Modifications non enregistrées'}
+              </span>
+            )}
             <Button disabled={!canConfirm || confirmMutation.isPending} onClick={() => confirmMutation.mutate()}>
               {confirmMutation.isPending ? 'Validation...' : "Valider l'import"}
             </Button>
