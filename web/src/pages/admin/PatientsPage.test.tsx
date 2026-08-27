@@ -144,18 +144,39 @@ describe('PatientsPage', () => {
     await waitFor(() => expect(screen.getByLabelText('Prénom')).toHaveValue('Bertin'))
     await userEvent.clear(screen.getByLabelText('Résidence'))
     await userEvent.type(screen.getByLabelText('Résidence'), 'Delmas')
+    await userEvent.selectOptions(screen.getByLabelText('Sexe'), 'F')
+    await userEvent.clear(screen.getByLabelText('Date de naissance'))
+    await userEvent.type(screen.getByLabelText('Date de naissance'), '1990-01-01')
     await userEvent.click(screen.getByText('Enregistrer'))
 
     await waitFor(() =>
       expect(api.put).toHaveBeenCalledWith('/patients/3', {
         first_name: 'Bertin',
         last_name: 'Louissaint',
-        sex: 'M',
-        date_of_birth: '1985-05-05',
+        sex: 'F',
+        date_of_birth: '1990-01-01',
         residence: 'Delmas',
       }),
     )
     await waitFor(() => expect(screen.queryByText('Modifier le patient')).not.toBeInTheDocument())
+  })
+
+  it('shows an error and keeps the modal open when saving a patient edit fails', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/patients') return Promise.resolve({ data: { data: [listedPatient] } })
+      if (url === '/patients/3') return Promise.resolve({ data: { data: listedPatient } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    vi.mocked(api.put).mockRejectedValueOnce(new Error('network error'))
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Bertin Louissaint')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+    await waitFor(() => expect(screen.getByLabelText('Prénom')).toHaveValue('Bertin'))
+    await userEvent.click(screen.getByText('Enregistrer'))
+
+    await waitFor(() => expect(screen.getByText('Une erreur inattendue est survenue.')).toBeInTheDocument())
+    expect(screen.getByText('Modifier le patient')).toBeInTheDocument()
   })
 
   it('lists trashed patients and lets a superadmin restore one', async () => {

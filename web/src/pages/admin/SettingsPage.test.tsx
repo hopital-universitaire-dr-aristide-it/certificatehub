@@ -5,7 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SettingsPage } from './SettingsPage'
 import { api } from '../../lib/api'
 
-vi.mock('../../lib/api', () => ({ api: { get: vi.fn(), put: vi.fn() } }))
+vi.mock('../../lib/api', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
+  return { ...actual, api: { get: vi.fn(), put: vi.fn() } }
+})
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
@@ -45,5 +48,17 @@ describe('SettingsPage', () => {
     await userEvent.click(screen.getByText('Ajouter'))
 
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/settings/hopital_telephone', { value: '+509 1234-5678' }))
+  })
+
+  it('shows an error when saving a setting fails', async () => {
+    vi.mocked(api.put).mockRejectedValue(new Error('network error'))
+    renderPage()
+
+    const input = await screen.findByLabelText('directeur_medical_name')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Dr. Nouveau Nom')
+    await userEvent.click(screen.getAllByText('Enregistrer')[0])
+
+    await waitFor(() => expect(screen.getByText('Une erreur inattendue est survenue.')).toBeInTheDocument())
   })
 })

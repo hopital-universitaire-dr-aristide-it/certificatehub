@@ -171,6 +171,28 @@ describe('CertificateEditPage', () => {
     await waitFor(() => expect(screen.getByText('Enregistré')).toBeInTheDocument())
   })
 
+  it('shows an error when the auto-save request fails', async () => {
+    renderPage(draftCertificate())
+    vi.mocked(api.put).mockRejectedValue(new Error('network error'))
+
+    await waitFor(() => expect(screen.getByLabelText('Résultat *')).toBeInTheDocument())
+    await userEvent.selectOptions(screen.getByLabelText('Résultat *'), 'sain')
+
+    await waitFor(() => expect(screen.getByText('Une erreur inattendue est survenue.')).toBeInTheDocument(), {
+      timeout: 3000,
+    })
+  })
+
+  it('shows an error when finalizing fails', async () => {
+    renderPage(draftCertificate())
+    vi.mocked(api.post).mockRejectedValue(new Error('network error'))
+
+    await waitFor(() => expect(screen.getByText('Finaliser')).toBeInTheDocument())
+    await userEvent.click(screen.getByText('Finaliser'))
+
+    await waitFor(() => expect(screen.getByText('Une erreur inattendue est survenue.')).toBeInTheDocument())
+  })
+
   it('disables the preview button until the form has data', async () => {
     renderPage(draftCertificate({ form_data: {} }))
     await waitFor(() => expect(screen.getByText('Aperçu')).toBeInTheDocument())

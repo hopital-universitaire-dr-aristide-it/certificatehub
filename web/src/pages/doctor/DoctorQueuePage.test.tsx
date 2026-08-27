@@ -94,6 +94,15 @@ describe('DoctorQueuePage', () => {
       }),
     )
     await waitFor(() => expect(screen.getByText('Page 2 sur 2 (21 au total)')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Précédent' }))
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/certificates/queue', {
+        params: { patient_name: undefined, page: 1 },
+      }),
+    )
+    await waitFor(() => expect(screen.getByText('Page 1 sur 2 (21 au total)')).toBeInTheDocument())
   })
 
   it('hides pagination controls when everything fits on one page', async () => {

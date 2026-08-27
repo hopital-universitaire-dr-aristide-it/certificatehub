@@ -83,4 +83,24 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(screen.getByTestId('user').textContent).toBe('anonymous'))
     expect(localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull()
   })
+
+  it('still clears the session locally if the logout request fails', async () => {
+    vi.mocked(api.post).mockRejectedValue(new Error('network error'))
+    localStorage.setItem(TOKEN_STORAGE_KEY, 'existing-token')
+    localStorage.setItem(
+      'certhub_user',
+      JSON.stringify({ id: 1, name: 'Dr. Test', email: 'a@b.com', roles: ['admin'], permissions: [] }),
+    )
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    )
+
+    await userEvent.click(screen.getByText('logout'))
+
+    await waitFor(() => expect(screen.getByTestId('user').textContent).toBe('anonymous'))
+    expect(localStorage.getItem(TOKEN_STORAGE_KEY)).toBeNull()
+  })
 })

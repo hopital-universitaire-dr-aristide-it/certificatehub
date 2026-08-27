@@ -109,4 +109,30 @@ describe('DynamicForm', () => {
     render(<DynamicForm fields={fields} values={{}} onChange={vi.fn()} disabled />)
     expect(screen.getByLabelText('Nom')).toBeDisabled()
   })
+
+  it('reports changes for a date field, a plain text field, and removing a multiselect option', async () => {
+    const onChange = vi.fn()
+    const fields = [
+      field({ id: 1, field_key: 'exam_date', label: 'Date examen', field_type: 'date' }),
+      field({ id: 2, field_key: 'note', label: 'Note libre', field_type: 'text' }),
+      field({
+        id: 3,
+        field_key: 'tags',
+        label: 'Tags',
+        field_type: 'multiselect',
+        config: { options: [{ value: 'x', label: 'X' }, { value: 'y', label: 'Y' }] },
+      }),
+    ]
+
+    render(<DynamicForm fields={fields} values={{ tags: ['x', 'y'] }} onChange={onChange} />)
+
+    await userEvent.type(screen.getByLabelText('Date examen'), '2026-08-27')
+    expect(onChange).toHaveBeenCalledWith('exam_date', expect.any(String))
+
+    await userEvent.type(screen.getByLabelText('Note libre'), 'a')
+    expect(onChange).toHaveBeenCalledWith('note', expect.any(String))
+
+    await userEvent.click(screen.getByLabelText('X'))
+    expect(onChange).toHaveBeenCalledWith('tags', ['y'])
+  })
 })
