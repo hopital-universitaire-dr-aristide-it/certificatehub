@@ -12,6 +12,7 @@ use Modules\Certificate\Services\CertificateService;
 use Modules\Import\Models\ImportBatch;
 use Modules\Import\Models\ImportUpload;
 use Modules\Import\Support\DoctorName;
+use Modules\Patient\Models\Patient;
 use Modules\Patient\Services\PatientService;
 use Modules\Reception\Services\ReceptionService;
 
@@ -105,7 +106,7 @@ class ImportConfirmService
     }
 
     /**
-     * @return array{0: array<string, \Modules\Patient\Models\Patient>, 1: int}
+     * @return array{0: array<string, Patient>, 1: int}
      */
     private function resolvePatients(array $rows, User $actor, ImportBatch $batch): array
     {
