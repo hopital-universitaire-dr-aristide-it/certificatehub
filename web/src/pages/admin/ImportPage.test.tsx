@@ -235,6 +235,86 @@ describe('ImportPage', () => {
     expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument()
   })
 
+  it('cross-filters patients and certificates when searching a patient, accent-insensitively', async () => {
+    mockGetRoutes({
+      uploads: [pendingUpload],
+      parse: parseResult({
+        patients: [
+          { row_id: 'p0', source_file: 'a.png', first_name: 'Jean', last_name: 'Pierre', sex: null, date_of_birth: '2000-01-01', age: null, residence: 'Delmas', exact_duplicate_patient_id: null, potential_duplicates: [] },
+          { row_id: 'p1', source_file: 'b.png', first_name: 'Marie', last_name: 'Séguin', sex: null, date_of_birth: '2001-01-01', age: null, residence: 'Pétion-Ville', exact_duplicate_patient_id: null, potential_duplicates: [] },
+        ],
+        doctors: [
+          { row_id: 'd0', name: 'Dr. Salomon', normalized_name: 'salomon', matched_user_id: 9, matched_user_name: 'Salomon', action: 'existing' },
+          { row_id: 'd1', name: 'Dr. Kaël', normalized_name: 'kael', matched_user_id: null, matched_user_name: null, action: 'create' },
+        ],
+        certificates: [
+          { row_id: 'c0', source_file: 'a.png', patient_row_id: 'p0', doctor_row_id: 'd0', exam_date: '2026-08-01', form_data: { outcome: 'sain', sign_contagieux: false, sign_chronique: false, sign_debilitant: false, sign_trouble_mental: false, recommandation: null } },
+          { row_id: 'c1', source_file: 'b.png', patient_row_id: 'p1', doctor_row_id: 'd1', exam_date: '2026-08-02', form_data: { outcome: 'sain', sign_contagieux: false, sign_chronique: false, sign_debilitant: false, sign_trouble_mental: false, recommandation: null } },
+        ],
+      }),
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+    await waitFor(() => expect(screen.getByText('Certificats')).toBeInTheDocument())
+
+    await userEvent.type(screen.getByPlaceholderText('Rechercher un patient (nom, prénom)...'), 'seguin')
+
+    expect(screen.getByDisplayValue('Séguin')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Pierre')).not.toBeInTheDocument()
+    expect(screen.getByText('b.png')).toBeInTheDocument()
+    expect(screen.queryByText('a.png')).not.toBeInTheDocument()
+  })
+
+  it('cross-filters patients and doctors when searching a certificate', async () => {
+    mockGetRoutes({
+      uploads: [pendingUpload],
+      parse: parseResult({
+        patients: [
+          { row_id: 'p0', source_file: 'a.png', first_name: 'Jean', last_name: 'Pierre', sex: null, date_of_birth: '2000-01-01', age: null, residence: 'Delmas', exact_duplicate_patient_id: null, potential_duplicates: [] },
+          { row_id: 'p1', source_file: 'b.png', first_name: 'Marie', last_name: 'Séguin', sex: null, date_of_birth: '2001-01-01', age: null, residence: 'Pétion-Ville', exact_duplicate_patient_id: null, potential_duplicates: [] },
+        ],
+        doctors: [
+          { row_id: 'd0', name: 'Dr. Salomon', normalized_name: 'salomon', matched_user_id: 9, matched_user_name: 'Salomon', action: 'existing' },
+          { row_id: 'd1', name: 'Dr. Kaël', normalized_name: 'kael', matched_user_id: null, matched_user_name: null, action: 'create' },
+        ],
+        certificates: [
+          { row_id: 'c0', source_file: 'a.png', patient_row_id: 'p0', doctor_row_id: 'd0', exam_date: '2026-08-01', form_data: { outcome: 'sain', sign_contagieux: false, sign_chronique: false, sign_debilitant: false, sign_trouble_mental: false, recommandation: null } },
+          { row_id: 'c1', source_file: 'b.png', patient_row_id: 'p1', doctor_row_id: 'd1', exam_date: '2026-08-02', form_data: { outcome: 'sain', sign_contagieux: false, sign_chronique: false, sign_debilitant: false, sign_trouble_mental: false, recommandation: null } },
+        ],
+      }),
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+    await waitFor(() => expect(screen.getByText('Certificats')).toBeInTheDocument())
+
+    await userEvent.type(
+      screen.getByPlaceholderText('Rechercher un certificat (patient, médecin, fichier, date)...'),
+      'b.png',
+    )
+
+    expect(screen.getByDisplayValue('Séguin')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Pierre')).not.toBeInTheDocument()
+    expect(screen.getAllByDisplayValue('Dr. Kaël').length).toBeGreaterThan(0)
+    expect(screen.queryByDisplayValue('Dr. Salomon')).not.toBeInTheDocument()
+  })
+
+  it('shows "Aucun résultat" when a search matches nothing', async () => {
+    mockGetRoutes({ uploads: [pendingUpload] })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Lot Test')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
+    await waitFor(() => expect(screen.getByText('Certificats')).toBeInTheDocument())
+
+    await userEvent.type(screen.getByPlaceholderText('Rechercher un patient (nom, prénom)...'), 'zzzzz')
+
+    expect(screen.getAllByText('Aucun résultat.').length).toBeGreaterThan(0)
+  })
+
   it('shows the validated badge and hides Continuer/Supprimer for a completed upload', async () => {
     mockGetRoutes({
       uploads: [

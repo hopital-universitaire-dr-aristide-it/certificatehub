@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { api, apiErrorMessage } from '../../lib/api'
@@ -21,6 +21,13 @@ import type {
 const fileInputClasses =
   'w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:file:bg-neutral-800 dark:hover:file:bg-neutral-700'
 
+function normalize(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+}
+
 export function ImportPage() {
   const queryClient = useQueryClient()
   const { hasPermission } = useAuth()
@@ -37,6 +44,10 @@ export function ImportPage() {
   const [doctors, setDoctors] = useState<ImportDoctorRow[]>([])
   const [certificates, setCertificates] = useState<ImportCertificateRow[]>([])
   const [skipped, setSkipped] = useState<ImportParseResult['skipped']>([])
+
+  const [patientSearch, setPatientSearch] = useState('')
+  const [doctorSearch, setDoctorSearch] = useState('')
+  const [certificateSearch, setCertificateSearch] = useState('')
 
   const [viewCompleted, setViewCompleted] = useState(false)
 
@@ -103,6 +114,9 @@ export function ImportPage() {
       setDoctors(result.doctors)
       setCertificates(result.certificates)
       setSkipped(result.skipped)
+      setPatientSearch('')
+      setDoctorSearch('')
+      setCertificateSearch('')
     },
     onError: (err) => setError(apiErrorMessage(err)),
   })
@@ -157,6 +171,9 @@ export function ImportPage() {
     setDoctors([])
     setCertificates([])
     setSkipped([])
+    setPatientSearch('')
+    setDoctorSearch('')
+    setCertificateSearch('')
   }
 
   function updatePatient(rowId: string, changes: Partial<ImportPatientRow>) {
@@ -173,6 +190,48 @@ export function ImportPage() {
 
   const hasPreview = activeUpload !== null
   const canConfirm = hasPreview && doctors.every((d) => d.action === 'create' || d.matched_user_id !== null)
+
+  const { filteredPatients, filteredDoctors, filteredCertificates } = useMemo(() => {
+    const patientTerm = normalize(patientSearch.trim())
+    const doctorTerm = normalize(doctorSearch.trim())
+    const certTerm = normalize(certificateSearch.trim())
+
+    const patientsById = new Map(patients.map((p) => [p.row_id, p]))
+    const doctorsById = new Map(doctors.map((d) => [d.row_id, d]))
+
+    const patientMatches = (p: ImportPatientRow) =>
+      !patientTerm || normalize(`${p.first_name} ${p.last_name}`).includes(patientTerm)
+    const doctorMatches = (d: ImportDoctorRow) => !doctorTerm || normalize(d.name).includes(doctorTerm)
+
+    const certs = certificates.filter((c) => {
+      const patient = c.patient_row_id ? patientsById.get(c.patient_row_id) : undefined
+      const doctor = c.doctor_row_id ? doctorsById.get(c.doctor_row_id) : undefined
+      if (patientTerm && !(patient && patientMatches(patient))) return false
+      if (doctorTerm && !(doctor && doctorMatches(doctor))) return false
+      if (certTerm) {
+        const haystack = normalize(
+          [c.source_file, patient ? `${patient.first_name} ${patient.last_name}` : '', doctor?.name ?? '', c.exam_date ?? '']
+            .join(' '),
+        )
+        if (!haystack.includes(certTerm)) return false
+      }
+      return true
+    })
+
+    const certPatientIds = new Set(certs.map((c) => c.patient_row_id))
+    const certDoctorIds = new Set(certs.map((c) => c.doctor_row_id))
+
+    const restrictPatients = Boolean(doctorTerm || certTerm)
+    const restrictDoctors = Boolean(patientTerm || certTerm)
+
+    return {
+      filteredPatients: patients.filter(
+        (p) => patientMatches(p) && (!restrictPatients || certPatientIds.has(p.row_id)),
+      ),
+      filteredDoctors: doctors.filter((d) => doctorMatches(d) && (!restrictDoctors || certDoctorIds.has(d.row_id))),
+      filteredCertificates: certs,
+    }
+  }, [patients, doctors, certificates, patientSearch, doctorSearch, certificateSearch])
 
   return (
     <div className="space-y-6">
@@ -371,7 +430,20 @@ export function ImportPage() {
 
           {doctors.length > 0 && (
             <Card>
-              <CardHeader title="Médecins" subtitle={`${doctors.length} médecin(s) détecté(s)`} />
+              <CardHeader
+                title="Médecins"
+                subtitle={
+                  doctorSearch
+                    ? `${filteredDoctors.length} / ${doctors.length} médecin(s)`
+                    : `${doctors.length} médecin(s) détecté(s)`
+                }
+              />
+              <Input
+                className="mb-3"
+                value={doctorSearch}
+                onChange={(e) => setDoctorSearch(e.target.value)}
+                placeholder="Rechercher un médecin..."
+              />
               <div className="max-h-96 overflow-y-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -382,7 +454,14 @@ export function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {doctors.map((d) => (
+                    {filteredDoctors.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-4 text-center text-neutral-500">
+                          Aucun résultat.
+                        </td>
+                      </tr>
+                    )}
+                    {filteredDoctors.map((d) => (
                       <tr key={d.row_id} className="border-b border-neutral-100 dark:border-neutral-900">
                         <td className="py-2 pr-4">
                           <Input value={d.name} onChange={(e) => updateDoctor(d.row_id, { name: e.target.value })} />
@@ -432,7 +511,20 @@ export function ImportPage() {
 
           {patients.length > 0 && (
             <Card>
-              <CardHeader title="Patients" subtitle={`${patients.length} patient(s) détecté(s)`} />
+              <CardHeader
+                title="Patients"
+                subtitle={
+                  patientSearch
+                    ? `${filteredPatients.length} / ${patients.length} patient(s)`
+                    : `${patients.length} patient(s) détecté(s)`
+                }
+              />
+              <Input
+                className="mb-3"
+                value={patientSearch}
+                onChange={(e) => setPatientSearch(e.target.value)}
+                placeholder="Rechercher un patient (nom, prénom)..."
+              />
               <div className="max-h-96 overflow-y-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -447,7 +539,14 @@ export function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {patients.map((p) => (
+                    {filteredPatients.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-4 text-center text-neutral-500">
+                          Aucun résultat.
+                        </td>
+                      </tr>
+                    )}
+                    {filteredPatients.map((p) => (
                       <tr key={p.row_id} className="border-b border-neutral-100 dark:border-neutral-900">
                         <td className="py-2 pr-4">
                           <Input
@@ -513,7 +612,20 @@ export function ImportPage() {
 
           {certificates.length > 0 && (
             <Card>
-              <CardHeader title="Certificats" subtitle={`${certificates.length} certificat(s) détecté(s)`} />
+              <CardHeader
+                title="Certificats"
+                subtitle={
+                  certificateSearch || patientSearch || doctorSearch
+                    ? `${filteredCertificates.length} / ${certificates.length} certificat(s)`
+                    : `${certificates.length} certificat(s) détecté(s)`
+                }
+              />
+              <Input
+                className="mb-3"
+                value={certificateSearch}
+                onChange={(e) => setCertificateSearch(e.target.value)}
+                placeholder="Rechercher un certificat (patient, médecin, fichier, date)..."
+              />
               <div className="max-h-[32rem] overflow-y-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -527,7 +639,14 @@ export function ImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {certificates.map((c) => {
+                    {filteredCertificates.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-4 text-center text-neutral-500">
+                          Aucun résultat.
+                        </td>
+                      </tr>
+                    )}
+                    {filteredCertificates.map((c) => {
                       const patient = patients.find((p) => p.row_id === c.patient_row_id)
                       const presenteSignes = c.form_data.outcome === 'presente_signes'
                       return (
