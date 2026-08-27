@@ -99,11 +99,14 @@ class ImportController extends Controller
             ]);
         }
 
+        // "present" plutot que "required" : un tableau vide (ex. aucune ligne
+        // ignoree, ou tous les medecins retires) est une valeur legitime, pas
+        // une absence — "required" rejette a tort un tableau vide.
         $validated = $request->validate([
-            'patients' => ['required', 'array'],
-            'doctors' => ['required', 'array'],
-            'certificates' => ['required', 'array'],
-            'skipped' => ['required', 'array'],
+            'patients' => ['present', 'array'],
+            'doctors' => ['present', 'array'],
+            'certificates' => ['present', 'array'],
+            'skipped' => ['present', 'array'],
         ]);
 
         $upload->update(['draft_result' => $validated]);
