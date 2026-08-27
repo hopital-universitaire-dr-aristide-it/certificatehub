@@ -90,6 +90,7 @@ export function AdminCertificateEditModal({ certificate, onClose }: AdminCertifi
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['certificates-oversight'] })
+      queryClient.invalidateQueries({ queryKey: ['reception-certificates'] })
       onClose()
     },
     onError: (err) => setError(apiErrorMessage(err)),

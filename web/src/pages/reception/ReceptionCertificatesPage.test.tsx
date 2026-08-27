@@ -31,8 +31,8 @@ function cert(overrides: Partial<Certificate> = {}): Certificate {
   }
 }
 
-function renderPage(permissions: string[] = ['certificate.create', 'certificate.print']) {
-  seedUser(makeUser({ roles: ['reception'], permissions }))
+function renderPage(permissions: string[] = ['certificate.create', 'certificate.print'], roles: string[] = ['reception']) {
+  seedUser(makeUser({ roles, permissions }))
   renderWithProviders(<ReceptionCertificatesPage />)
 }
 
@@ -184,5 +184,37 @@ describe('ReceptionCertificatesPage', () => {
         },
       }),
     )
+  })
+
+  it('hides the "Modifier" button for a plain reception user', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [cert({ import_tag: 'Lot Août 2026' })] } })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Modifier' })).not.toBeInTheDocument()
+  })
+
+  it('shows "Modifier" for manager_ext only on a certificate tagged from an import', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [cert({ import_tag: 'Lot Août 2026' })] } })
+    renderPage(['certificate.create', 'certificate.print', 'certificate.manage_imported'], ['manager_ext'])
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument()
+  })
+
+  it('hides "Modifier" for manager_ext on a certificate without an import tag', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [cert({ import_tag: null })] } })
+    renderPage(['certificate.create', 'certificate.print', 'certificate.manage_imported'], ['manager_ext'])
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Modifier' })).not.toBeInTheDocument()
+  })
+
+  it('shows "Modifier" for superadmin (certificate.manage_all) regardless of import tag', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [cert({ import_tag: null })] } })
+    renderPage(['certificate.create', 'certificate.print', 'certificate.manage_all'], ['superadmin'])
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Modifier' })).toBeInTheDocument()
   })
 })

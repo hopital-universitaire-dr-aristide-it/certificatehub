@@ -10,6 +10,7 @@ use Modules\Certificate\Models\Certificate;
 use Modules\Certificate\Models\CertificateType;
 use Modules\FormHub\Database\Seeders\CertificatSanteFormSeeder;
 use Modules\FormHub\Models\FormDefinition;
+use Modules\Import\Models\ImportBatch;
 use Modules\Patient\Models\Patient;
 use Modules\SystemAdmin\Database\Seeders\RolesAndPermissionsSeeder;
 use Tests\TestCase;
@@ -396,5 +397,54 @@ class CertificateWorkflowTest extends TestCase
         $this->actingAs($superadmin, 'sanctum')
             ->putJson("/api/v1/certificates/{$certificate->id}/manage", ['doctor_id' => $reception->id])
             ->assertStatus(422);
+    }
+
+    /**
+     * manager_ext (certificate.manage_imported) peut corriger un certificat
+     * issu d'un import JSON — memes capacites d'edition que le superadmin,
+     * mais uniquement sur les certificats tagues (import_batch_id renseigne).
+     */
+    public function test_manager_ext_can_edit_a_certificate_tagged_from_an_import(): void
+    {
+        $type = $this->santeType();
+        $otherType = $this->santeType();
+        $patient = Patient::factory()->create(['first_name' => 'Jean', 'last_name' => 'Baptiste']);
+        $originalDoctor = $this->userWithRole('doctor');
+        $newDoctor = $this->userWithRole('doctor');
+        $managerExt = $this->userWithRole('manager_ext');
+        $batch = ImportBatch::create(['tag' => 'Lot Test', 'created_by' => $managerExt->id]);
+        $certificate = Certificate::factory()->create([
+            'patient_id' => $patient->id,
+            'certificate_type_id' => $type->id,
+            'doctor_id' => $originalDoctor->id,
+            'status' => CertificateStatus::Finalized,
+            'import_batch_id' => $batch->id,
+            'data' => ['outcome' => 'sain'],
+        ]);
+
+        $response = $this->actingAs($managerExt, 'sanctum')->putJson("/api/v1/certificates/{$certificate->id}/manage", [
+            'patient' => ['first_name' => 'Jeanne'],
+            'certificate_type_id' => $otherType->id,
+            'doctor_id' => $newDoctor->id,
+            'data' => ['outcome' => 'presente_signes'],
+        ]);
+
+        $response->assertOk();
+        $this->assertSame('Jeanne Baptiste', $response->json('data.patient_name'));
+        $this->assertDatabaseHas('certificates', [
+            'id' => $certificate->id,
+            'certificate_type_id' => $otherType->id,
+            'doctor_id' => $newDoctor->id,
+        ]);
+    }
+
+    public function test_manager_ext_cannot_edit_a_certificate_without_an_import_tag(): void
+    {
+        $certificate = Certificate::factory()->create();
+        $managerExt = $this->userWithRole('manager_ext');
+
+        $this->actingAs($managerExt, 'sanctum')
+            ->putJson("/api/v1/certificates/{$certificate->id}/manage", ['data' => []])
+            ->assertStatus(403);
     }
 }

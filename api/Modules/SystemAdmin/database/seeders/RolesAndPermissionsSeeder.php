@@ -46,7 +46,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'auth.login', 'auth.logout', 'auth.change_own_password',
             'patient.view', 'patient.create', 'patient.update', 'patient.search',
             'certificate.view', 'certificate.create', 'certificate.mark_paid', 'certificate.print',
-            'import.review',
+            'import.review', 'certificate.manage_imported',
         ],
         // superadmin: toutes les permissions, assignees ci-dessous sans liste explicite
         'superadmin' => [],

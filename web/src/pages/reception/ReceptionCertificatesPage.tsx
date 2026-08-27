@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Printer, Receipt } from 'lucide-react'
+import { Pencil, Printer, Receipt } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { usePdfPreview } from '../../lib/usePdfPreview'
@@ -11,6 +11,7 @@ import { IconButton } from '../../components/ui/IconButton'
 import { Badge } from '../../components/ui/Badge'
 import { Input, Label, Select, FieldError } from '../../components/ui/Field'
 import { PdfModal } from '../../components/ui/PdfModal'
+import { AdminCertificateEditModal } from '../../components/certificates/AdminCertificateEditModal'
 import type { Certificate, ImportBatch, PaginatedResponse } from '../../types'
 
 function money(amount: number) {
@@ -20,6 +21,8 @@ function money(amount: number) {
 export function ReceptionCertificatesPage() {
   const { hasPermission } = useAuth()
   const canPrint = hasPermission('certificate.print')
+  const canManageAll = hasPermission('certificate.manage_all')
+  const canManageImported = hasPermission('certificate.manage_imported')
 
   const [patientName, setPatientName] = useState('')
   const [doctorName, setDoctorName] = useState('')
@@ -28,6 +31,7 @@ export function ReceptionCertificatesPage() {
   const [importTag, setImportTag] = useState('')
   const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
+  const [editingCertificate, setEditingCertificate] = useState<Certificate | null>(null)
   const pdfPreview = usePdfPreview()
 
   const debouncedPatientName = useDebouncedValue(patientName, 300)
@@ -165,6 +169,9 @@ export function ReceptionCertificatesPage() {
                       </td>
                       <td className="py-2 pr-4 text-right">
                         <div className="flex justify-end gap-1">
+                          {(canManageAll || (canManageImported && cert.import_tag)) && (
+                            <IconButton icon={Pencil} label="Modifier" onClick={() => setEditingCertificate(cert)} />
+                          )}
                           {cert.payment_status === 'paid' && canPrint && (
                             <IconButton icon={Receipt} label="Imprimer la facture" onClick={() => handleInvoice(cert.id)} />
                           )}
@@ -205,6 +212,9 @@ export function ReceptionCertificatesPage() {
         )}
       </Card>
       {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={pdfPreview.close} />}
+      {editingCertificate && (
+        <AdminCertificateEditModal certificate={editingCertificate} onClose={() => setEditingCertificate(null)} />
+      )}
     </div>
   )
 }

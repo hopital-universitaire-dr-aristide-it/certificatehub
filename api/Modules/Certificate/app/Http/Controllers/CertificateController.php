@@ -58,14 +58,23 @@ class CertificateController extends Controller
     }
 
     /**
-     * Edition superadmin "tout-en-un" (voir certificate.manage_all) : corrige
-     * en un seul appel les infos du patient (repercutees sur le vrai
-     * dossier, pas seulement ce certificat), le medecin assigne, le type de
-     * certificat et les reponses du formulaire — y compris sur un certificat
-     * deja finalise.
+     * Edition "tout-en-un" : corrige en un seul appel les infos du patient
+     * (repercutees sur le vrai dossier, pas seulement ce certificat), le
+     * medecin assigne, le type de certificat et les reponses du formulaire —
+     * y compris sur un certificat deja finalise. certificate.manage_all
+     * (superadmin) autorise n'importe quel certificat ; certificate.manage_imported
+     * (manager_ext) se limite aux certificats issus d'un import JSON.
      */
     public function adminUpdate(AdminUpdateCertificateRequest $request, Certificate $certificate)
     {
+        $actor = $request->user();
+
+        if (! $actor->can('certificate.manage_all')) {
+            if (! $actor->can('certificate.manage_imported') || $certificate->import_batch_id === null) {
+                abort(403);
+            }
+        }
+
         $validated = $request->validated();
 
         if (! empty($validated['patient'])) {
