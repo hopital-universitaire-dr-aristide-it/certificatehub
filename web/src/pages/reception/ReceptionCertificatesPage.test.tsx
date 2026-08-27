@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { ReceptionCertificatesPage } from './ReceptionCertificatesPage'
 import { renderWithProviders, seedUser, makeUser } from '../../test/renderWithProviders'
 import { api } from '../../lib/api'
-import type { Certificate } from '../../types'
+import type { Certificate, Role } from '../../types'
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api')
@@ -31,7 +31,7 @@ function cert(overrides: Partial<Certificate> = {}): Certificate {
   }
 }
 
-function renderPage(permissions: string[] = ['certificate.create', 'certificate.print'], roles: string[] = ['reception']) {
+function renderPage(permissions: string[] = ['certificate.create', 'certificate.print'], roles: Role[] = ['reception']) {
   seedUser(makeUser({ roles, permissions }))
   renderWithProviders(<ReceptionCertificatesPage />)
 }
