@@ -32,6 +32,9 @@ export function ReceptionCertificatesPage() {
   const [page, setPage] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const [editingCertificate, setEditingCertificate] = useState<Certificate | null>(null)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [printQueue, setPrintQueue] = useState<number[]>([])
+  const [isPrintingSelection, setIsPrintingSelection] = useState(false)
   const pdfPreview = usePdfPreview()
 
   const debouncedPatientName = useDebouncedValue(patientName, 300)
@@ -94,6 +97,50 @@ export function ReceptionCertificatesPage() {
     }
   }
 
+  function toggleSelected(certificateId: number) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(certificateId)) {
+        next.delete(certificateId)
+      } else {
+        next.add(certificateId)
+      }
+      return next
+    })
+  }
+
+  async function printSelection() {
+    setError(null)
+    const ids = [...selected]
+    if (ids.length === 0) return
+    setIsPrintingSelection(true)
+    try {
+      setPrintQueue(ids.slice(1))
+      await pdfPreview.open(`/certificates/${ids[0]}/print`)
+      setSelected(new Set())
+    } catch (err) {
+      setError(apiErrorMessage(err))
+      setIsPrintingSelection(false)
+    }
+  }
+
+  async function handlePreviewClose() {
+    if (printQueue.length > 0) {
+      const [next, ...rest] = printQueue
+      setPrintQueue(rest)
+      try {
+        await pdfPreview.open(`/certificates/${next}/print`)
+      } catch (err) {
+        setError(apiErrorMessage(err))
+        setIsPrintingSelection(false)
+        pdfPreview.close()
+      }
+      return
+    }
+    setIsPrintingSelection(false)
+    pdfPreview.close()
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -131,12 +178,21 @@ export function ReceptionCertificatesPage() {
 
         <FieldError message={error ?? undefined} />
 
+        {canPrint && (
+          <div className="mb-3">
+            <Button variant="secondary" disabled={selected.size === 0 || isPrintingSelection} onClick={printSelection}>
+              {isPrintingSelection ? 'Impression...' : `Imprimer la sélection (${selected.size})`}
+            </Button>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           {isError && <p className="py-4 text-center text-sm text-red-600">Impossible de charger les certificats.</p>}
           {!isError && (
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-neutral-200 text-neutral-500 dark:border-neutral-800">
+                  <th className="py-2 pr-4"></th>
                   <th className="py-2 pr-4">Patient</th>
                   <th className="py-2 pr-4">Médecin</th>
                   <th className="py-2 pr-4">Date</th>
@@ -152,6 +208,16 @@ export function ReceptionCertificatesPage() {
                   const isFinalized = cert.status === 'finalized'
                   return (
                     <tr key={cert.id} className="border-b border-neutral-100 dark:border-neutral-900">
+                      <td className="py-2 pr-4">
+                        {isFinalized && canPrint && (
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
+                            checked={selected.has(cert.id)}
+                            onChange={() => toggleSelected(cert.id)}
+                          />
+                        )}
+                      </td>
                       <td className="py-2 pr-4">{cert.patient_name}</td>
                       <td className="py-2 pr-4">{cert.doctor_name ?? '—'}</td>
                       <td className="py-2 pr-4">{new Date(cert.created_at).toLocaleDateString('fr-FR')}</td>
@@ -185,7 +251,7 @@ export function ReceptionCertificatesPage() {
                 })}
                 {certificates?.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-4 text-center text-neutral-500">
+                    <td colSpan={9} className="py-4 text-center text-neutral-500">
                       Aucun certificat trouvé.
                     </td>
                   </tr>
@@ -211,7 +277,7 @@ export function ReceptionCertificatesPage() {
           </div>
         )}
       </Card>
-      {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={pdfPreview.close} />}
+      {pdfPreview.url && <PdfModal url={pdfPreview.url} onClose={handlePreviewClose} />}
       {editingCertificate && (
         <AdminCertificateEditModal certificate={editingCertificate} onClose={() => setEditingCertificate(null)} />
       )}

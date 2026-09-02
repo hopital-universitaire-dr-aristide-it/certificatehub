@@ -210,6 +210,42 @@ describe('ReceptionCertificatesPage', () => {
     expect(screen.queryByRole('button', { name: 'Modifier' })).not.toBeInTheDocument()
   })
 
+  it('prints a batch of selected certificates in sequence', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/visits') {
+        return Promise.resolve({ data: { data: [cert({ id: 10 }), cert({ id: 11, patient_name: 'Marie Claire' })] } })
+      }
+      if (url === '/certificates/10/print' || url === '/certificates/11/print') {
+        return Promise.resolve({ data: new Blob(['%PDF-1.4']) })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    const checkboxes = screen.getAllByRole('checkbox')
+    expect(checkboxes).toHaveLength(2)
+    await userEvent.click(checkboxes[0])
+    await userEvent.click(checkboxes[1])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Imprimer la sélection (2)' }))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/certificates/10/print', { responseType: 'blob' }))
+    await waitFor(() => expect(screen.getByTitle('Document PDF')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Fermer' }))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/certificates/11/print', { responseType: 'blob' }))
+  })
+
+  it('only offers the selection checkbox for finalized certificates', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: { data: [cert({ status: 'draft' })] } })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
   it('shows "Modifier" for superadmin (certificate.manage_all) regardless of import tag', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [cert({ import_tag: null })] } })
     renderPage(['certificate.create', 'certificate.print', 'certificate.manage_all'], ['superadmin'])

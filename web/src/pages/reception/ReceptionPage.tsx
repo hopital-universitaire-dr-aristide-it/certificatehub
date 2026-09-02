@@ -14,7 +14,7 @@ import { PdfModal } from '../../components/ui/PdfModal'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { PatientAutocomplete } from '../../components/patients/PatientAutocomplete'
 import { NewPatientForm, emptyNewPatientValues, type NewPatientValues } from '../../components/patients/NewPatientForm'
-import type { Certificate, CertificateType, Patient, PatientSummary, PaginatedResponse } from '../../types'
+import type { Certificate, CertificateType, ImportBatch, Patient, PatientSummary, PaginatedResponse } from '../../types'
 
 function money(amount: number) {
   return new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', maximumFractionDigits: 0 }).format(amount)
@@ -36,6 +36,7 @@ export function ReceptionPage() {
   const [visitsSearch, setVisitsSearch] = useState('')
   const [visitsDateFrom, setVisitsDateFrom] = useState('')
   const [visitsDateTo, setVisitsDateTo] = useState('')
+  const [visitsImportTag, setVisitsImportTag] = useState('')
   const [visitsPage, setVisitsPage] = useState(1)
   const debouncedVisitsSearch = useDebouncedValue(visitsSearch, 300)
   const canPrint = hasPermission('certificate.print')
@@ -58,13 +59,14 @@ export function ReceptionPage() {
   }, [certificateTypes, certificateTypeId])
 
   const { data: visitsResponse } = useQuery({
-    queryKey: ['visits', debouncedVisitsSearch, visitsDateFrom, visitsDateTo, visitsPage],
+    queryKey: ['visits', debouncedVisitsSearch, visitsDateFrom, visitsDateTo, visitsImportTag, visitsPage],
     queryFn: async () => {
       const { data } = await api.get<PaginatedResponse<Certificate>>('/visits', {
         params: {
           patient_name: debouncedVisitsSearch || undefined,
           date_from: visitsDateFrom || undefined,
           date_to: visitsDateTo || undefined,
+          import_tag: visitsImportTag || undefined,
           page: visitsPage,
           // Une fois marque imprime manuellement, le certificat quitte cette
           // liste de travail et rejoint la page dediee "Certificats imprimés".
@@ -77,6 +79,14 @@ export function ReceptionPage() {
   })
   const visits = visitsResponse?.data
   const visitsMeta = visitsResponse?.meta
+
+  const { data: importBatches } = useQuery({
+    queryKey: ['import-batches'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: ImportBatch[] }>('/import-batches')
+      return data.data
+    },
+  })
 
   function handleVisitsSearchChange(value: string) {
     setVisitsSearch(value)
@@ -291,7 +301,7 @@ export function ReceptionPage() {
         <CardHeader title="Visites du jour" subtitle="Marquer le paiement pour libérer l'accès au médecin" />
         <FieldError message={printError ?? undefined} />
 
-        <div className="mb-4 grid grid-cols-3 gap-3">
+        <div className="mb-4 grid grid-cols-4 gap-3">
           <div>
             <Label htmlFor="visits-search">Rechercher un patient</Label>
             <Input
@@ -324,6 +334,24 @@ export function ReceptionPage() {
                 setVisitsPage(1)
               }}
             />
+          </div>
+          <div>
+            <Label htmlFor="visits-import-tag">Étiquette d'import</Label>
+            <Select
+              id="visits-import-tag"
+              value={visitsImportTag}
+              onChange={(e) => {
+                setVisitsImportTag(e.target.value)
+                setVisitsPage(1)
+              }}
+            >
+              <option value="">Toutes</option>
+              {importBatches?.map((batch) => (
+                <option key={batch.id} value={batch.tag}>
+                  {batch.tag}
+                </option>
+              ))}
+            </Select>
           </div>
         </div>
 

@@ -266,6 +266,33 @@ describe('ReceptionPage', () => {
     expect(api.post).toHaveBeenCalledWith('/visits/11/mark-printed')
   })
 
+  it('filters "Visites du jour" by import tag', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/import-batches') return Promise.resolve({ data: { data: [{ id: 1, tag: 'Lot Août 2026' }] } })
+      if (url === '/visits') return Promise.resolve({ data: { data: [visit] } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+
+    await userEvent.selectOptions(screen.getByLabelText("Étiquette d'import"), 'Lot Août 2026')
+
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/visits', {
+        params: {
+          patient_name: undefined,
+          date_from: undefined,
+          date_to: undefined,
+          import_tag: 'Lot Août 2026',
+          page: 1,
+          printed: 0,
+        },
+      }),
+    )
+  })
+
   it('shows the registration date and time for each visit', async () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
