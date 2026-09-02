@@ -203,6 +203,7 @@ describe('ImportPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continuer' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: "Valider l'import" })).toBeDisabled())
+    expect(screen.getByText(/Choisissez un compte pour le médecin.*Inconnu/)).toBeInTheDocument()
   })
 
   it('hides the upload form for manager_ext but still shows the pending list', async () => {

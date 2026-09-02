@@ -244,7 +244,8 @@ export function ImportPage() {
   }
 
   const hasPreview = activeUpload !== null
-  const canConfirm = hasPreview && doctors.every((d) => d.action === 'create' || d.matched_user_id !== null)
+  const unmatchedDoctors = doctors.filter((d) => d.action === 'existing' && d.matched_user_id === null)
+  const canConfirm = hasPreview && unmatchedDoctors.length === 0
 
   const { filteredPatients, filteredDoctors, filteredCertificates } = useMemo(() => {
     const patientTerm = normalize(patientSearch.trim())
@@ -818,19 +819,29 @@ export function ImportPage() {
             </Card>
           )}
 
-          <div className="flex items-center justify-end gap-3">
-            {editVersion > 0 && (
-              <span className="text-xs text-neutral-500">
-                {saveDraftMutation.isPending
-                  ? 'Enregistrement du brouillon...'
-                  : editVersion === savedVersion
-                    ? 'Brouillon enregistré'
-                    : 'Modifications non enregistrées'}
-              </span>
+          <div className="flex flex-col items-end gap-2">
+            <FieldError message={confirmMutation.isError ? apiErrorMessage(confirmMutation.error) : undefined} />
+            {unmatchedDoctors.length > 0 && (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Choisissez un compte pour {unmatchedDoctors.length > 1 ? 'les médecins' : 'le médecin'} :{' '}
+                {unmatchedDoctors.map((d) => d.name).join(', ')} (ou passez-{unmatchedDoctors.length > 1 ? 'les' : 'le'} en
+                « Créer un nouveau compte »).
+              </p>
             )}
-            <Button disabled={!canConfirm || confirmMutation.isPending} onClick={() => confirmMutation.mutate()}>
-              {confirmMutation.isPending ? 'Validation...' : "Valider l'import"}
-            </Button>
+            <div className="flex items-center justify-end gap-3">
+              {editVersion > 0 && (
+                <span className="text-xs text-neutral-500">
+                  {saveDraftMutation.isPending
+                    ? 'Enregistrement du brouillon...'
+                    : editVersion === savedVersion
+                      ? 'Brouillon enregistré'
+                      : 'Modifications non enregistrées'}
+                </span>
+              )}
+              <Button disabled={!canConfirm || confirmMutation.isPending} onClick={() => confirmMutation.mutate()}>
+                {confirmMutation.isPending ? 'Validation...' : "Valider l'import"}
+              </Button>
+            </div>
           </div>
         </>
       )}
