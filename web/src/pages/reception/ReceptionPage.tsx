@@ -212,6 +212,34 @@ export function ReceptionPage() {
     })
   }
 
+  // Selectionne tous les certificats finalises correspondant aux filtres
+  // actifs, pas seulement la page de 20 affichee a l'ecran (voir
+  // /visits/printable-ids cote backend).
+  const selectAllMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.get<{ ids: number[] }>('/visits/printable-ids', {
+        params: {
+          patient_name: debouncedVisitsSearch || undefined,
+          date_from: visitsDateFrom || undefined,
+          date_to: visitsDateTo || undefined,
+          import_tag: visitsImportTag || undefined,
+          printed: 0,
+        },
+      })
+      return data.ids
+    },
+    onSuccess: (ids) => setSelected(new Set(ids)),
+    onError: (err) => setPrintError(apiErrorMessage(err)),
+  })
+
+  function toggleSelectAll() {
+    if (selected.size > 0) {
+      setSelected(new Set())
+    } else {
+      selectAllMutation.mutate()
+    }
+  }
+
   async function printSelection() {
     setPrintError(null)
     const ids = [...selected]
@@ -357,6 +385,13 @@ export function ReceptionPage() {
 
         {canPrint && (
           <div className="mb-3 flex gap-2">
+            <Button variant="secondary" disabled={selectAllMutation.isPending} onClick={toggleSelectAll}>
+              {selectAllMutation.isPending
+                ? 'Chargement...'
+                : selected.size > 0
+                  ? 'Tout désélectionner'
+                  : 'Tout sélectionner'}
+            </Button>
             <Button variant="secondary" disabled={selected.size === 0 || isPrintingSelection} onClick={printSelection}>
               {isPrintingSelection ? 'Impression...' : `Imprimer la sélection (${selected.size})`}
             </Button>

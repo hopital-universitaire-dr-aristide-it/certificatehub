@@ -237,6 +237,29 @@ describe('ReceptionPage', () => {
     await waitFor(() => expect(screen.queryByTitle('Document PDF')).not.toBeInTheDocument())
   })
 
+  it('selects all visits matching the active filters, beyond the current page, then can deselect all', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })
+      if (url === '/visits') {
+        return Promise.resolve({
+          data: { data: [{ ...visit, id: 10, status: 'finalized', payment_status: 'paid' }] },
+        })
+      }
+      if (url === '/visits/printable-ids') return Promise.resolve({ data: { ids: [10, 11, 12] } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage(['certificate.create', 'certificate.mark_paid', 'certificate.print'])
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Tout sélectionner' }))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/visits/printable-ids', { params: expect.any(Object) }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Imprimer la sélection (3)' })).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tout désélectionner' }))
+    expect(screen.getByRole('button', { name: 'Imprimer la sélection (0)' })).toBeInTheDocument()
+  })
+
   it('marks a multi-selected batch of visits as printed in one action', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url === '/certificate-types') return Promise.resolve({ data: { data: certificateTypes } })

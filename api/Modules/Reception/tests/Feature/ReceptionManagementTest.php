@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Certificate\Enums\CertificateStatus;
 use Modules\Certificate\Models\Certificate;
 use Modules\Certificate\Models\CertificateType;
+use Modules\Import\Models\ImportBatch;
 use Modules\Patient\Models\Patient;
 use Modules\SystemAdmin\Database\Seeders\RolesAndPermissionsSeeder;
 use Tests\TestCase;
@@ -300,5 +301,44 @@ class ReceptionManagementTest extends TestCase
 
         $after = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits?printed=0');
         $this->assertCount(0, $after->json('data'));
+    }
+
+    /**
+     * "Tout selectionner" cote frontend doit couvrir tout le filtre (ex. un
+     * tag d'import), pas seulement la page de 20 affichee a l'ecran — d'ou
+     * cet endpoint dedie, non pagine.
+     */
+    public function test_printable_ids_returns_all_finalized_certificates_matching_the_active_filters(): void
+    {
+        $finalized = Certificate::factory()->count(25)->create(['status' => CertificateStatus::Finalized]);
+        Certificate::factory()->create(['status' => CertificateStatus::Draft]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')->getJson('/api/v1/visits/printable-ids');
+
+        $response->assertOk();
+        $this->assertCount(25, $response->json('ids'));
+        $this->assertEqualsCanonicalizing($finalized->pluck('id')->all(), $response->json('ids'));
+    }
+
+    public function test_printable_ids_respects_the_import_tag_filter(): void
+    {
+        $batch = ImportBatch::create(['tag' => 'Lot Août 2026', 'created_by' => $this->userWithRole('superadmin')->id]);
+        $tagged = Certificate::factory()->create(['status' => CertificateStatus::Finalized, 'import_batch_id' => $batch->id]);
+        Certificate::factory()->create(['status' => CertificateStatus::Finalized]);
+        $reception = $this->userWithRole('reception');
+
+        $response = $this->actingAs($reception, 'sanctum')
+            ->getJson('/api/v1/visits/printable-ids?'.http_build_query(['import_tag' => 'Lot Août 2026']));
+
+        $response->assertOk();
+        $this->assertSame([$tagged->id], $response->json('ids'));
+    }
+
+    public function test_doctor_cannot_list_printable_ids(): void
+    {
+        $doctor = $this->userWithRole('doctor');
+
+        $this->actingAs($doctor, 'sanctum')->getJson('/api/v1/visits/printable-ids')->assertStatus(403);
     }
 }

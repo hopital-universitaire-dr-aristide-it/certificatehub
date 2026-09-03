@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pencil, Printer, Receipt } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { usePdfPreview } from '../../lib/usePdfPreview'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
@@ -109,6 +109,34 @@ export function ReceptionCertificatesPage() {
     })
   }
 
+  // Selectionne tous les certificats finalises correspondant aux filtres
+  // actifs, pas seulement la page de 20 affichee a l'ecran (voir
+  // /visits/printable-ids cote backend).
+  const selectAllMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.get<{ ids: number[] }>('/visits/printable-ids', {
+        params: {
+          patient_name: debouncedPatientName || undefined,
+          doctor_name: debouncedDoctorName || undefined,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          import_tag: importTag || undefined,
+        },
+      })
+      return data.ids
+    },
+    onSuccess: (ids) => setSelected(new Set(ids)),
+    onError: (err) => setError(apiErrorMessage(err)),
+  })
+
+  function toggleSelectAll() {
+    if (selected.size > 0) {
+      setSelected(new Set())
+    } else {
+      selectAllMutation.mutate()
+    }
+  }
+
   async function printSelection() {
     setError(null)
     const ids = [...selected]
@@ -179,7 +207,14 @@ export function ReceptionCertificatesPage() {
         <FieldError message={error ?? undefined} />
 
         {canPrint && (
-          <div className="mb-3">
+          <div className="mb-3 flex gap-2">
+            <Button variant="secondary" disabled={selectAllMutation.isPending} onClick={toggleSelectAll}>
+              {selectAllMutation.isPending
+                ? 'Chargement...'
+                : selected.size > 0
+                  ? 'Tout désélectionner'
+                  : 'Tout sélectionner'}
+            </Button>
             <Button variant="secondary" disabled={selected.size === 0 || isPrintingSelection} onClick={printSelection}>
               {isPrintingSelection ? 'Impression...' : `Imprimer la sélection (${selected.size})`}
             </Button>

@@ -3,7 +3,9 @@
 namespace Modules\Reception\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Modules\Certificate\Enums\CertificateStatus;
 use Modules\Certificate\Http\Resources\CertificateResource;
 use Modules\Certificate\Models\Certificate;
 use Modules\Reception\Http\Requests\RegisterVisitRequest;
@@ -20,7 +22,29 @@ class ReceptionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Certificate::with(['patient', 'doctor', 'importBatch'])->orderByDesc('created_at');
+        $query = $this->filteredQuery($request)->with(['patient', 'doctor', 'importBatch'])->orderByDesc('created_at');
+
+        return CertificateResource::collection($query->paginate(20));
+    }
+
+    /**
+     * IDs (non paginees) des certificats finalises correspondant aux filtres
+     * actifs — utilise par le frontend pour "Tout selectionner" sur
+     * l'impression par lot, qui doit couvrir tout le filtre (ex. un tag
+     * d'import) et pas seulement la page de 20 affichee a l'ecran.
+     */
+    public function printableIds(Request $request)
+    {
+        $ids = $this->filteredQuery($request)
+            ->where('status', CertificateStatus::Finalized)
+            ->pluck('id');
+
+        return response()->json(['ids' => $ids]);
+    }
+
+    private function filteredQuery(Request $request): Builder
+    {
+        $query = Certificate::query();
 
         if ($request->filled('payment_status')) {
             $query->where('payment_status', $request->string('payment_status')->toString());
@@ -64,7 +88,7 @@ class ReceptionController extends Controller
             $query->whereHas('importBatch', fn ($batchQuery) => $batchQuery->where('tag', $tag));
         }
 
-        return CertificateResource::collection($query->paginate(20));
+        return $query;
     }
 
     public function store(RegisterVisitRequest $request)

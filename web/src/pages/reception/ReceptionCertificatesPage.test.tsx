@@ -238,6 +238,24 @@ describe('ReceptionCertificatesPage', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/certificates/11/print', { responseType: 'blob' }))
   })
 
+  it('selects all certificates matching the active filters, beyond the current page, then can deselect all', async () => {
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/visits') return Promise.resolve({ data: { data: [cert({ id: 10 })] } })
+      if (url === '/visits/printable-ids') return Promise.resolve({ data: { ids: [10, 11, 12] } })
+      return Promise.resolve({ data: { data: [] } })
+    })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByText('Jean Baptiste')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Tout sélectionner' }))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/visits/printable-ids', { params: expect.any(Object) }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Imprimer la sélection (3)' })).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tout désélectionner' }))
+    expect(screen.getByRole('button', { name: 'Imprimer la sélection (0)' })).toBeInTheDocument()
+  })
+
   it('only offers the selection checkbox for finalized certificates', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [cert({ status: 'draft' })] } })
     renderPage()
