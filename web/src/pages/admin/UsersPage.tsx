@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { KeyRound, Power, Trash2, RotateCcw } from 'lucide-react'
+import { Check, KeyRound, Power, Trash2, RotateCcw } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, apiErrorMessage } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
@@ -97,6 +97,14 @@ export function UsersPage() {
     onError: (err) => setError(apiErrorMessage(err)),
   })
 
+  const renameMutation = useMutation({
+    mutationFn: async ({ userId, name }: { userId: number; name: string }) => {
+      await api.put(`/users/${userId}`, { name })
+    },
+    onSuccess: invalidate,
+    onError: (err) => setError(apiErrorMessage(err)),
+  })
+
   return (
     <div className="space-y-6">
       <Card>
@@ -136,6 +144,7 @@ export function UsersPage() {
                 onAssignRole={(role) => assignRoleMutation.mutate({ userId: user.id, role })}
                 onToggleActive={() => toggleActiveMutation.mutate({ userId: user.id, isActive: !user.is_active })}
                 onChangePassword={(password) => changePasswordMutation.mutate({ userId: user.id, password })}
+                onRenameUser={(name) => renameMutation.mutate({ userId: user.id, name })}
                 onDelete={() => {
                   if (window.confirm(`Supprimer le compte de ${user.name} ? Il pourra être rétabli depuis la corbeille.`)) {
                     deleteMutation.mutate(user.id)
@@ -183,6 +192,7 @@ function UserRow({
   onAssignRole,
   onToggleActive,
   onChangePassword,
+  onRenameUser,
   onDelete,
 }: {
   user: User
@@ -190,9 +200,11 @@ function UserRow({
   onAssignRole: (role: string) => void
   onToggleActive: () => void
   onChangePassword: (password: string) => void
+  onRenameUser: (name: string) => void
   onDelete: () => void
 }) {
   const [newPassword, setNewPassword] = useState('')
+  const [name, setName] = useState(user.name)
 
   function submitPassword() {
     if (newPassword.length < 8) return
@@ -200,10 +212,26 @@ function UserRow({
     setNewPassword('')
   }
 
+  const trimmedName = name.trim()
+  const canSaveName = trimmedName.length > 0 && trimmedName !== user.name
+
+  function submitName() {
+    if (!canSaveName) return
+    onRenameUser(trimmedName)
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
       <div className="min-w-48">
-        <p className="text-sm font-medium">{user.name}</p>
+        <div className="flex items-center gap-1">
+          <Input
+            aria-label={`Nom de ${user.email}`}
+            className="w-40"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <IconButton icon={Check} label="Enregistrer le nom" tone="primary" disabled={!canSaveName} onClick={submitName} />
+        </div>
         <p className="text-xs text-neutral-500">{user.email}</p>
       </div>
       <Badge tone={user.is_active ? 'green' : 'red'}>{user.is_active ? 'Actif' : 'Désactivé'}</Badge>

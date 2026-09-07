@@ -39,7 +39,7 @@ describe('UsersPage', () => {
     vi.mocked(api.post).mockResolvedValue({ data: {} })
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByDisplayValue('Alice')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: 'Désactiver' }))
 
     expect(api.post).toHaveBeenCalledWith('/users/1/deactivate')
@@ -70,7 +70,7 @@ describe('UsersPage', () => {
     vi.mocked(api.delete).mockResolvedValue({ data: {} })
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByDisplayValue('Alice')).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
 
     expect(api.delete).toHaveBeenCalledWith('/users/1')
@@ -80,7 +80,7 @@ describe('UsersPage', () => {
     vi.mocked(api.put).mockResolvedValue({ data: {} })
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByDisplayValue('Alice')).toBeInTheDocument())
     await userEvent.type(screen.getByPlaceholderText('Nouveau mot de passe'), 'nouveaumdp123')
     await userEvent.click(screen.getByRole('button', { name: 'Changer le mot de passe' }))
 
@@ -90,16 +90,40 @@ describe('UsersPage', () => {
   it('keeps the password button disabled for passwords under 8 characters', async () => {
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByDisplayValue('Alice')).toBeInTheDocument())
     await userEvent.type(screen.getByPlaceholderText('Nouveau mot de passe'), 'short')
 
     expect(screen.getByRole('button', { name: 'Changer le mot de passe' })).toBeDisabled()
   })
 
+  it('renames a user', async () => {
+    vi.mocked(api.put).mockResolvedValue({ data: {} })
+    renderPage()
+
+    await waitFor(() => expect(screen.getByDisplayValue('Alice')).toBeInTheDocument())
+    const nameInput = screen.getByLabelText('Nom de alice@huda.ht')
+    await userEvent.clear(nameInput)
+    await userEvent.type(nameInput, 'Alicia')
+    await userEvent.click(screen.getByRole('button', { name: 'Enregistrer le nom' }))
+
+    expect(api.put).toHaveBeenCalledWith('/users/1', { name: 'Alicia' })
+  })
+
+  it('keeps the rename button disabled when the name is empty or unchanged', async () => {
+    renderPage()
+
+    await waitFor(() => expect(screen.getByDisplayValue('Alice')).toBeInTheDocument())
+    const nameInput = screen.getByLabelText('Nom de alice@huda.ht')
+    expect(screen.getByRole('button', { name: 'Enregistrer le nom' })).toBeDisabled()
+
+    await userEvent.clear(nameInput)
+    expect(screen.getByRole('button', { name: 'Enregistrer le nom' })).toBeDisabled()
+  })
+
   it('does not show the delete button to a non-superadmin admin', async () => {
     renderPage(['admin'])
 
-    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByDisplayValue('Alice')).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument()
   })
 })
