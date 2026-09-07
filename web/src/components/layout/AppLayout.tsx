@@ -32,8 +32,8 @@ export function AppLayout() {
   const visibleItems = navItems.filter((item) => item.show)
 
   return (
-    <div className="flex min-h-svh">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white/60 px-4 py-6 dark:border-neutral-800 dark:bg-neutral-900/40">
+    <div className="flex h-svh">
+      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-neutral-200 bg-white/60 px-4 py-6 dark:border-neutral-800 dark:bg-neutral-900/40">
         <div className="mb-8 px-2">
           <p className="text-lg font-semibold tracking-tight">CertificateHub</p>
           <p className="text-xs text-neutral-500 dark:text-neutral-400">Hôpital Universitaire Dr. Aristide</p>

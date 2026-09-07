@@ -2,11 +2,16 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api } from '../../lib/api'
+import { useAuth } from '../../lib/auth'
 import { Card, CardHeader } from '../../components/ui/Card'
-import { Select } from '../../components/ui/Field'
+import { Input, Label, Select } from '../../components/ui/Field'
 import type { ReportSummary } from '../../types'
 
-type Period = 'today' | 'week' | 'month'
+type Period = 'today' | 'week' | 'month' | 'custom'
+
+function today() {
+  return new Date().toISOString().slice(0, 10)
+}
 
 function money(amount: number) {
   return new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', maximumFractionDigits: 0 }).format(amount)
@@ -22,28 +27,66 @@ function StatCard({ label, value }: { label: string; value: string }) {
 }
 
 export function DashboardPage() {
+  const { hasRole } = useAuth()
+  const isSuperadmin = hasRole('superadmin')
   const [period, setPeriod] = useState<Period>('month')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState(today())
+
+  const isCustomReady = period === 'custom' && dateFrom !== '' && dateTo !== ''
 
   const { data: report, isLoading } = useQuery({
-    queryKey: ['reports-certificates', period],
+    queryKey: ['reports-certificates', period, dateFrom, dateTo],
     queryFn: async () => {
-      const { data } = await api.get<ReportSummary>('/reports/certificates', { params: { period } })
+      const params =
+        period === 'custom' ? { period, date_from: dateFrom, date_to: dateTo } : { period }
+      const { data } = await api.get<ReportSummary>('/reports/certificates', { params })
       return data
     },
+    enabled: period !== 'custom' || isCustomReady,
   })
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Tableau de bord</h1>
-        <Select value={period} onChange={(e) => setPeriod(e.target.value as Period)} className="w-40">
-          <option value="today">Aujourd'hui</option>
-          <option value="week">Cette semaine</option>
-          <option value="month">Ce mois</option>
-        </Select>
+        <div className="flex flex-wrap items-end gap-3">
+          <Select value={period} onChange={(e) => setPeriod(e.target.value as Period)} className="w-40">
+            <option value="today">Aujourd'hui</option>
+            <option value="week">Cette semaine</option>
+            <option value="month">Ce mois</option>
+            {isSuperadmin && <option value="custom">Période personnalisée</option>}
+          </Select>
+          {isSuperadmin && period === 'custom' && (
+            <>
+              <div>
+                <Label htmlFor="dashboard-date-from">Depuis le</Label>
+                <Input
+                  id="dashboard-date-from"
+                  type="date"
+                  className="w-40"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="dashboard-date-to">Jusqu'au</Label>
+                <Input
+                  id="dashboard-date-to"
+                  type="date"
+                  className="w-40"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {isLoading || !report ? (
+      {period === 'custom' && !isCustomReady ? (
+        <p className="text-neutral-500">Choisissez une date de début pour afficher la période personnalisée.</p>
+      ) : isLoading || !report ? (
         <p className="text-neutral-500">Chargement...</p>
       ) : (
         <>
