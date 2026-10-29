@@ -70,7 +70,7 @@
         </ul>
     @else
         <p>
-            {{ $patient['full_name'] }} ne présente aucun signe évocateur de maladies contagieuses ou
+            {{ $patient['full_name'] }} ne présente aucun signe de maladies contagieuses ou
             transmissibles, ni de signes de maladies chroniques ou débilitantes. {{ ucfirst($patient['pronoun']) }}
             ne présente pas non plus de signes de trouble mental.
         </p>
